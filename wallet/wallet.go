@@ -1,73 +1,73 @@
 package wallet
 
-import(
-    "fmt"
-    "crypto/ecdsa"
-	"math/big"
-    "crypto/elliptic"
-	"io/ioutil"
-    "crypto/rand"
+import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
 	"encoding/pem"
-    "hash/crc32"
-    "crypto/x509"
+	"fmt"
+	"hash/crc32"
+	"io/ioutil"
+	"math/big"
 
-    log "github.com/sirupsen/logrus"
-    "github.com/minio/blake2b-simd"
+	"github.com/minio/blake2b-simd"
+	log "github.com/sirupsen/logrus"
 )
 
 /* A wallet is a pem file containing the private key. */
-type Wallet struct{
-    PrivKey *ecdsa.PrivateKey
+type Wallet struct {
+	PrivKey *ecdsa.PrivateKey
 }
 
-func GenerateWallet() *Wallet{
-    priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-    if err != nil {
-        log.Fatal(err)
-    }
+func GenerateWallet() *Wallet {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    return &Wallet{priv}
+	return &Wallet{priv}
 }
 
-func ImportWallet(filePath string) *Wallet{
+func ImportWallet(filePath string) *Wallet {
 	pemEncoded, err := ioutil.ReadFile(filePath)
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
 
 	decoded, _ := pem.Decode(pemEncoded)
 
-	key, err:= x509.ParseECPrivateKey(decoded.Bytes)
-	if err != nil{
+	key, err := x509.ParseECPrivateKey(decoded.Bytes)
+	if err != nil {
 		log.Fatal(err)
 	}
-    return &Wallet{key}
+	return &Wallet{key}
 }
 
-func (w *Wallet) SaveKey(filePath string){
-    x509Encoded, err := x509.MarshalECPrivateKey(w.PrivKey)
-    if err != nil {
-        log.Fatal(err)
-    }
+func (w *Wallet) SaveKey(filePath string) {
+	x509Encoded, err := x509.MarshalECPrivateKey(w.PrivKey)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "WALLET PRIVATE KEY", Bytes: x509Encoded})
 	ioutil.WriteFile(filePath, pemEncoded, 400)
 }
 
 // The old one was leaking private key data TODO fix
-func (w *Wallet) GetWallet() string{
+func (w *Wallet) GetWallet() string {
 	return BytesToAddress([]byte(w.PrivKey.X.String() + w.PrivKey.Y.String()))
 }
 
-func BytesToAddress(data []byte) string{
-    hash := blake2b.Sum256(data)
-    sum := crc32.ChecksumIEEE(hash[:])
-    return fmt.Sprintf("Dexm%s%x", Base58Encoding(hash[:]), sum)
+func BytesToAddress(data []byte) string {
+	hash := blake2b.Sum256(data)
+	sum := crc32.ChecksumIEEE(hash[:])
+	return fmt.Sprintf("Dexm%s%x", Base58Encoding(hash[:]), sum)
 }
 
-func (w *Wallet) Sign(data []byte) (r, s *big.Int){
-    r, s, err := ecdsa.Sign(rand.Reader, w.PrivKey, data)
-	if err != nil{
+func (w *Wallet) Sign(data []byte) (r, s *big.Int) {
+	r, s, err := ecdsa.Sign(rand.Reader, w.PrivKey, data)
+	if err != nil {
 		log.Error(err)
 	}
 

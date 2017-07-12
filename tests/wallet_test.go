@@ -1,7 +1,7 @@
 package tests
 
 import (
-    "github.com/badlamb/DeXm/wallet"
+    "github.com/badlamb/dexm/wallet"
     "os"
     "testing"
 )

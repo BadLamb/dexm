@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -31,6 +30,7 @@ func StartSyncServer() {
 	log.Info("Starting sync webserver...")
 	http.HandleFunc("/getaddr", getAddr)
 	http.HandleFunc("/getlen", getMaxBlock)
+	http.HandleFunc("/getblock", getBlock)
 	http.ListenAndServe(PORT, nil)
 }
 
@@ -57,15 +57,17 @@ func getAddr(w http.ResponseWriter, r *http.Request) {
 
 /* getBlock returns a block at index ?index */
 func getBlock(w http.ResponseWriter, r *http.Request) {
-	if r.Form.Get("index") != "" {
-		index, err := strconv.Atoi(r.Form.Get("index"))
+	if r.FormValue("index") != "" {
+		index, err := strconv.Atoi(r.FormValue("index"))
 		if err != nil {
+			log.Println("Error")
 			w.Write([]byte("Error"))
 			return
 		}
 
 		data, err := bc.GetBlock(index)
 		if err != nil {
+			log.Println("Error")
 			w.Write([]byte("Error"))
 			return
 		}
@@ -86,7 +88,6 @@ func getMessage(w http.ResponseWriter, r *http.Request) {}
 /* Insert IP and timestamp into DB */
 func updateTimestamp(ip string) {
 	log.Info(ip)
-	stamp := make([]byte, 8)
-	binary.LittleEndian.PutUint64(stamp, uint64(time.Now().Unix()))
+	stamp := []byte(string(time.Now().Unix()))
 	nodeDatabase.Put([]byte(ip), stamp, nil)
 }

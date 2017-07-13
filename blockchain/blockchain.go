@@ -1,9 +1,8 @@
 package blockchain
 
 import (
-	"bytes"
-	"encoding/binary"
 	"strconv"
+	"encoding/json"
 	"time"
 
 	"github.com/minio/blake2b-simd"
@@ -22,13 +21,9 @@ type Block struct {
 
 func (b *Block) CalculateHash() string {
 	// Convert struct to binary in order to hash
-	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.LittleEndian, b)
-	if err != nil {
-		log.Error(err)
-	}
+	buf := b.GetBytes()
 
-	hash := blake2b.Sum256(buf.Bytes())
+	hash := blake2b.Sum256(buf)
 	return string(hash[:])
 }
 
@@ -78,7 +73,7 @@ func (bc *BlockChain) GetBlock(index int) (*Block, error) {
 	}
 
 	var newBlock Block
-	binary.Read(bytes.NewReader(data), binary.LittleEndian, &newBlock)
+	json.Unmarshal(data, &newBlock)
 
 	return &newBlock, nil
 }
@@ -102,12 +97,12 @@ func (bc *BlockChain) NewBlock(transactionList, contractList []byte) {
 	bc.DB.Put([]byte(string("len")), []byte(string(lastIndex+2)), nil)
 }
 
-func (b *Block) GetBytes() []byte {
-	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.LittleEndian, b)
-	if err != nil {
-		log.Error(err)
+func (b Block) GetBytes() []byte {
+	encoded, err := json.Marshal(b)
+	if err != nil{
+		log.Error(nil)
+		return nil
 	}
-
-	return buf.Bytes()
+	log.Println(string(encoded))
+	return encoded
 }

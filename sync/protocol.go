@@ -41,14 +41,9 @@ func StartSyncServer() {
 			Timeout: time.Second * 10,
 			Transport: netTransport,
 		}
-
 		for iter.Next() {
 			// Clean up given IP and avoid getting tricked into ddosing a server
-			ip, _, err := net.SplitHostPort(string(iter.Key()))
-			if err != nil{
-				log.Error("Problem with ip:", ip)
-				continue
-			}
+			ip := string(iter.Key())
 
 			resp, err := netClient.Get("http://" + ip + ":3141/getaddr")
 			if err != nil{
@@ -56,12 +51,16 @@ func StartSyncServer() {
 				continue
 			}
 
+
 			ips := make(map[string][]byte)
 			data, err := ioutil.ReadAll(resp.Body)
 			if err != nil{
 				log.Error(err)
 				continue
 			}
+
+			log.Info(string(data))
+
 			json.Unmarshal(data, &ips)
 
 			for k, v := range ips{
@@ -136,7 +135,8 @@ func getMessage(w http.ResponseWriter, r *http.Request) {}
 /* Insert IP and timestamp into DB */
 func updateTimestamp(ip string) {
 	ip, _, err := net.SplitHostPort(ip)
-	if err != nil || ip == "127.0.0.1" || ip != ""{
+	if err != nil || ip == "127.0.0.1" || ip == ""{
+		log.Error(err)
 		return
 	}
 	stamp := []byte(string(time.Now().Unix()))

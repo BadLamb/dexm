@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"encoding/json"
 	"time"
+	"errors"
 
 	"github.com/minio/blake2b-simd"
 	log "github.com/sirupsen/logrus"
@@ -99,8 +100,35 @@ func (bc *BlockChain) NewBlock(transactionList, contractList []byte) {
 	bc.DB.Put([]byte(string("len")), []byte(string(lastIndex+2)), nil)
 }
 
+func (bc *BlockChain) VerifyNewBlockValidity(newBlock *Block) (bool, error){
+	latestIndex := bc.GetLen() - 1
+	latestBlock, err := bc.GetBlock(latestIndex)
+	if err != nil {
+		return false, err
+	}
+	if newBlock.Index != latestIndex + 1 {
+		err := errors.New("Block index is not correct")
+		return false, err
+	} else if latestBlock.Hash != newBlock.PreviousBlockHash {
+		err := errors.New("Previous block's hash is not correct")
+		return false, err
+	} else if newBlock.Hash != newBlock.CalculateHash() {
+		err := errors.New("Block hash is not correct")
+		return false, err
+	}
+	return true, nil
+}
+
 func (b Block) GetBytes() []byte {
-	encoded, err := json.Marshal(b)
+	// copy the block without the Hash field
+	var bCopy Block
+	bCopy.Index = b.Index
+	bCopy.Timestamp = b.Timestamp
+	bCopy.PreviousBlockHash = b.PreviousBlockHash
+	bCopy.TransactionList = b.TransactionList
+	bCopy.ContractList = b.ContractList
+	
+	encoded, err := json.Marshal(bCopy)
 	if err != nil{
 		log.Error(nil)
 		return nil

@@ -135,7 +135,7 @@ func getMessage(w http.ResponseWriter, r *http.Request) {}
 /* Insert IP and timestamp into DB */
 func updateTimestamp(ip string) {
 	ip, _, err := net.SplitHostPort(ip)
-	if err != nil || ip == "127.0.0.1" || ip == ""{
+	if err != nil || ip == "127.0.0.1" || ip == "::1" || ip == "" {
 		log.Error(err)
 		return
 	}

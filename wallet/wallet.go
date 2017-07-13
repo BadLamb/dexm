@@ -7,9 +7,12 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"bytes"
 	"hash/crc32"
 	"io/ioutil"
 	"math/big"
+	"time"
+	"encoding/binary"
 
 	"github.com/minio/blake2b-simd"
 	log "github.com/sirupsen/logrus"
@@ -116,4 +119,34 @@ func Base58Encoding(bin []byte) string {
 	}
 
 	return string(b58)
+}
+
+type Transaction struct {
+	Sender string
+	Recipient string
+	
+	Amount int
+	Timestamp int64
+	SenderSig []*big.Int
+}
+
+func (w Wallet) NewTransaction (recipient string, amount int) Transaction{
+	var newT Transaction
+	newT.Sender = w.GetWallet()
+	newT.Recipient = recipient
+	newT.Amount = amount
+	newT.Timestamp = time.Now().Unix()
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, binary.LittleEndian, newT)
+	if err != nil {
+		log.Error(err)
+	}
+	r, s := w.Sign(buf.Bytes())
+	
+	sig := make([]*big.Int, 2)
+	sig[0] = r
+	sig[1] = s
+	
+	newT.SenderSig = sig
+	return newT
 }

@@ -130,7 +130,7 @@ type Transaction struct {
 	SenderSig []*big.Int
 }
 
-func (w Wallet) NewTransaction (recipient string, amount int) Transaction{
+func (w *Wallet) NewTransaction (recipient string, amount int) *Transaction{
 	var newT Transaction
 	newT.Sender = w.GetWallet()
 	newT.Recipient = recipient

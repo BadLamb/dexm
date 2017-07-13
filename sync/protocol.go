@@ -7,6 +7,7 @@ import(
     "encoding/json"
 
     "github.com/syndtr/goleveldb/leveldb"
+    "github.com/badlambd/dexm/blockchain"
     log "github.com/sirupsen/logrus"
 )
 
@@ -18,7 +19,9 @@ var nodeDatabase *leveldb.DB
 
 func StartSyncServer() {
     log.Info("Opening node db..")
-
+    
+    chain := blockchain.NewBlockChain()
+    
     nodeDatabase, _ = leveldb.OpenFile("ips.db", nil)
     defer nodeDatabase.Close()
 

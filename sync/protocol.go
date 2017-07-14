@@ -29,6 +29,7 @@ func StartSyncServer() {
 	nodeDatabase, _ = leveldb.OpenFile("ips.db", nil)
 	defer nodeDatabase.Close()
 
+	// This goroutine contacts known nodes and asks for their ip list
 	go func(){
 		iter := nodeDatabase.NewIterator(nil, nil)
 		netTransport := &http.Transport{
@@ -45,7 +46,7 @@ func StartSyncServer() {
 			// Clean up given IP and avoid getting tricked into ddosing a server
 			ip := string(iter.Key())
 
-			resp, err := netClient.Get("http://" + ip + ":3141/getaddr")
+			resp, err := netClient.Get("http://" + ip + PORT + "/getaddr")
 			if err != nil{
 				log.Error(err)
 				continue
@@ -64,11 +65,43 @@ func StartSyncServer() {
 			json.Unmarshal(data, &ips)
 
 			for k, v := range ips{
+				e := net.ParseIP(k)
+				if e == nil{
+					continue
+				}
+
 				_, err = nodeDatabase.Get([]byte(k), nil)
 				if err != nil{
 					nodeDatabase.Put([]byte(k), v, nil)
+					
+					// Once a new IP has been found contact it and ask it for the len of it's chain
+					go func(k string){
+						resp, err := netClient.Get("http://" + k + PORT + "/getlen")
+						if err != nil{
+							log.Error(err)
+							return
+						}
+
+						data, err := ioutil.ReadAll(resp.Body)
+						if err != nil{
+							log.Error(err)
+							return
+						}
+
+						numOfBlocks, err := strconv.Atoi(string(data))
+						if err != nil{
+							log.Error(err)
+							return
+						}
+						if numOfBlocks > bc.GetLen(){
+							log.Info("Found peer with longer chain! Syncing...")
+						}
+					}(k)
+					
 					continue
 				}
+
+				// TODO Timestamp logic
 			}
 		}
 
@@ -109,13 +142,13 @@ func getBlock(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("index") != "" {
 		index, err := strconv.Atoi(r.FormValue("index"))
 		if err != nil {
-			w.Write([]byte("Error"))
+			w.Write([]byte(err.Error()))
 			return
 		}
 
 		data, err := bc.GetBlock(index)
 		if err != nil {
-			w.Write([]byte("Error"))
+			w.Write([]byte(err.Error()))
 			return
 		}
 
@@ -125,7 +158,7 @@ func getBlock(w http.ResponseWriter, r *http.Request) {
 
 /* Returns how many blocks the client knows */
 func getMaxBlock(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(string(bc.GetLen())))
+	w.Write([]byte(strconv.Itoa(bc.GetLen())))
 }
 
 /* getMessage recives messages from other known peers about
@@ -134,9 +167,9 @@ func getMessage(w http.ResponseWriter, r *http.Request) {}
 
 /* Insert IP and timestamp into DB */
 func updateTimestamp(ip string) {
+	// TODO fix local ips
 	ip, _, err := net.SplitHostPort(ip)
 	if err != nil || ip == "127.0.0.1" || ip == "::1" || ip == "" {
-		log.Error(err)
 		return
 	}
 	stamp := []byte(string(time.Now().Unix()))

@@ -7,13 +7,12 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"bytes"
 	"hash/crc32"
 	"io/ioutil"
 	"math/big"
 	"time"
-	"encoding/binary"
 	"encoding/json"
+	"errors"
 
 	"github.com/minio/blake2b-simd"
 	log "github.com/sirupsen/logrus"
@@ -51,7 +50,10 @@ func ImportWallet(filePath string) *Wallet {
 		log.Fatal(err)
 	}
 	var walletfile WalletFile
-	json.Unmarshal(walletfilejson, &walletfile)
+	err = json.Unmarshal(walletfilejson, &walletfile)
+	if err != nil {
+		log.Error(err)
+	}
 	pemEncoded := []byte(walletfile.PrivKeyString)
 	decoded, _ := pem.Decode(pemEncoded)
 
@@ -65,7 +67,7 @@ func ImportWallet(filePath string) *Wallet {
 		Balance: walletfile.Balance}
 }
 
-func (w *Wallet) SaveKey(filePath string) {
+func (w *Wallet) ExportWallet(filePath string) {
 	// convert priv key to x509
 	x509Encoded, err := x509.MarshalECPrivateKey(w.PrivKey)
 	if err != nil {
@@ -160,25 +162,28 @@ type Transaction struct {
 	SenderSig []*big.Int
 }
 
-func (w *Wallet) NewTransaction (recipient string, amount int) Transaction{
+func (w *Wallet) NewTransaction (recipient string, amount int) (Transaction, error){
+	if amount > w.Balance {
+		return Transaction{}, errors.New("Only cobwebs here!")
+	}
+	w.Nonce++
+	w.Balance -= amount
+
 	var newT Transaction
 	newT.Sender = w.GetWallet()
 	newT.Recipient = recipient
 	newT.Amount = amount
-	w.Nonce++
 	newT.SenderNonce = w.Nonce
 	newT.Timestamp = time.Now().Unix()
-	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.LittleEndian, newT)
-	if err != nil {
-		log.Error(err)
-	}
-	r, s := w.Sign(buf.Bytes())
+	
+	result, _ := json.Marshal(newT)
+	
+	r, s := w.Sign(result)
 	
 	sig := make([]*big.Int, 2)
 	sig[0] = r
 	sig[1] = s
 	
 	newT.SenderSig = sig
-	return newT
+	return newT, nil
 }

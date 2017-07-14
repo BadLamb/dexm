@@ -4,6 +4,8 @@ import(
     "os"
     "bufio"
     "strings"
+    "strconv"
+    "encoding/json"
 
     "github.com/urfave/cli"
     log "github.com/sirupsen/logrus"
@@ -27,7 +29,7 @@ func main(){
                 reader := bufio.NewReader(os.Stdin)
                 text, _ := reader.ReadString('\n')
 
-                wal.SaveKey(strings.TrimSpace(text))
+                wal.ExportWallet(strings.TrimSpace(text))
 
                 return nil
             },
@@ -36,9 +38,35 @@ func main(){
         {
             Name: "startnode",
             Usage: "Starts a full node and tries to sync the blockchain",
-            Aliases: []string{"sn"},
+            Aliases: []string{"sn", "rn"},
             Action: func (c *cli.Context) error{
                 protocol.StartSyncServer()
+                return nil
+            },
+        },
+        
+        {
+            Name: "maketransaction",
+            Usage: "mkt [walletPath] [recipient] [amount]",
+            Aliases: []string{"mkt", "gt"},
+            Action: func (c *cli.Context) error{
+				walletPath := c.Args().Get(0)
+                recipient := c.Args().Get(1)
+                amount, err := strconv.Atoi(c.Args().Get(2))
+                if err != nil {
+					log.Error(err)
+				}
+                senderWallet := wallet.ImportWallet(walletPath)
+                transaction, err := senderWallet.NewTransaction(recipient, amount)
+                if err != nil{
+					log.Error(err)
+					return nil
+				}
+                //the nonce and amount have changed, let's save them
+                senderWallet.ExportWallet(walletPath)
+                log.Info("Generated Transaction")
+                r, _:= json.Marshal(transaction)
+                log.Info(string(r))
                 return nil
             },
         },

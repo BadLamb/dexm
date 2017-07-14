@@ -43,9 +43,11 @@ func NewBlockChain() *BlockChain {
 
 	hash := genesis.CalculateHash()
 	genesis.Hash = hash
+
 	//leveldb has no way to determine the length of the database
 	//The key "len" will store that value
-	bc.DB.Put([]byte(string("len")), []byte(string(1)), nil)
+	err := bc.DB.Put([]byte(string("len")), []byte(string(1)), nil)
+	log.Error(err)
 	bc.DB.Put([]byte(string(0)), genesis.GetBytes(), nil)
 
 	return bc
@@ -56,7 +58,6 @@ func OpenBlockchain() *BlockChain {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
 	return &BlockChain{db}
 }
 
@@ -64,8 +65,13 @@ func (bc *BlockChain) GetLen() int {
 	index, err := bc.DB.Get([]byte(string("len")), nil)
 	if err != nil {
 		log.Fatal("Invalid blockchain.db")
+		return -1
 	}
-	num, _ := strconv.Atoi(string(index))
+	num, err := strconv.Atoi(string(index))
+	if err != nil {
+		log.Error(err)
+		return -1
+	}
 	return num
 }
 

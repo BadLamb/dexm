@@ -13,14 +13,23 @@ import (
 	"math/big"
 	"time"
 	"encoding/binary"
+	"encoding/json"
 
 	"github.com/minio/blake2b-simd"
 	log "github.com/sirupsen/logrus"
 )
 
-/* A wallet is a pem file containing the private key. */
 type Wallet struct {
 	PrivKey *ecdsa.PrivateKey
+	Nonce int
+	Balance int
+}
+
+type WalletFile struct {
+	// content to be converted in json
+	PrivKeyString string
+	Nonce int
+	Balance int
 }
 
 func GenerateWallet() *Wallet {
@@ -29,32 +38,52 @@ func GenerateWallet() *Wallet {
 		log.Fatal(err)
 	}
 
-	return &Wallet{priv}
+	return &Wallet{
+		PrivKey: priv,
+		Nonce: 0,
+		Balance: 0,
+	}
 }
 
 func ImportWallet(filePath string) *Wallet {
-	pemEncoded, err := ioutil.ReadFile(filePath)
+	walletfilejson, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	var walletfile WalletFile
+	json.Unmarshal(walletfilejson, &walletfile)
+	pemEncoded := []byte(walletfile.PrivKeyString)
 	decoded, _ := pem.Decode(pemEncoded)
 
 	key, err := x509.ParseECPrivateKey(decoded.Bytes)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return &Wallet{key}
+	return &Wallet{
+		PrivKey: key,
+		Nonce: walletfile.Nonce,
+		Balance: walletfile.Balance}
 }
 
 func (w *Wallet) SaveKey(filePath string) {
+	// convert priv key to x509
 	x509Encoded, err := x509.MarshalECPrivateKey(w.PrivKey)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "WALLET PRIVATE KEY", Bytes: x509Encoded})
-	ioutil.WriteFile(filePath, pemEncoded, 400)
+	walletfile := WalletFile{
+		PrivKeyString : string(pemEncoded),
+		Nonce: w.Nonce,
+		Balance: w.Balance,
+	}
+	
+	result, err := json.Marshal(walletfile)
+	if err != nil{
+		log.Error(err)
+	}
+	
+	ioutil.WriteFile(filePath, result, 400)
 }
 
 // The old one was leaking private key data TODO fix
@@ -126,15 +155,18 @@ type Transaction struct {
 	Recipient string
 	
 	Amount int
+	SenderNonce int
 	Timestamp int64
 	SenderSig []*big.Int
 }
 
-func (w *Wallet) NewTransaction (recipient string, amount int) *Transaction{
+func (w *Wallet) NewTransaction (recipient string, amount int) Transaction{
 	var newT Transaction
 	newT.Sender = w.GetWallet()
 	newT.Recipient = recipient
 	newT.Amount = amount
+	w.Nonce++
+	newT.SenderNonce = w.Nonce
 	newT.Timestamp = time.Now().Unix()
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, newT)

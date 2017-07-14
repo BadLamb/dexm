@@ -121,7 +121,7 @@ func (bc *BlockChain) VerifyNewBlockValidity(newBlock *Block) (bool, error){
 	} else if newBlock.Hash != newBlock.CalculateHash() {
 		err := errors.New("Block hash is not correct")
 		return false, err
-	}
+	} // TODO check if has been correctly mined (i.e.: hash with leading zeros, all trans valid...)
 	return true, nil
 }
 

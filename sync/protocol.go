@@ -157,7 +157,7 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 	log.Info(ioutil.ReadAll(r.Body))
 }
 
-func broadcastMessage(class int, data []byte) {
+func BroadcastMessage(class int, data []byte) {
 	toSend := Message{class, data}
 
 	iter := nodeDatabase.NewIterator(nil, nil)

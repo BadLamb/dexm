@@ -65,8 +65,9 @@ func main(){
                 //the nonce and amount have changed, let's save them
                 senderWallet.ExportWallet(walletPath)
                 log.Info("Generated Transaction")
-                r, _:= json.Marshal(transaction)
-                log.Info(string(r))
+                t, _:= json.Marshal(transaction)
+                protocol.BroadcastMessage(1, t)
+                log.Info(string(t))
                 return nil
             },
         },

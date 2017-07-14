@@ -46,8 +46,7 @@ func NewBlockChain() *BlockChain {
 
 	//leveldb has no way to determine the length of the database
 	//The key "len" will store that value
-	err := bc.DB.Put([]byte(string("len")), []byte(string(1)), nil)
-	log.Error(err)
+	bc.DB.Put([]byte(string("len")), []byte(string(1)), nil)
 	bc.DB.Put([]byte(string(0)), genesis.GetBytes(), nil)
 
 	return bc

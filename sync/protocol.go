@@ -19,22 +19,23 @@ const (
 )
 
 type Message struct {
-	id   int
-	data []byte
+	Id   int
+	Data []byte
 }
 
 var nodeDatabase *leveldb.DB
 var bc *blockchain.BlockChain
 
-func StartSyncServer() {
-	log.Info("Opening node db..")
-
+func InitPartialNode() {
 	chain := blockchain.NewBlockChain()
 	bc = chain
 
 	nodeDatabase, _ = leveldb.OpenFile("ips.db", nil)
-	defer nodeDatabase.Close()
+}
 
+func StartSyncServer() {
+	log.Info("Opening node db..")
+	InitPartialNode()
 	/* This goroutine contacts known nodes and asks for their ip list */
 	go func() {
 		iter := nodeDatabase.NewIterator(nil, nil)
@@ -158,9 +159,10 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func BroadcastMessage(class int, data []byte) {
-	toSend := Message{class, data}
-
+	toSend := Message{Id: class,Data: data}
+	InitPartialNode()
 	iter := nodeDatabase.NewIterator(nil, nil)
+
 	netTransport := &http.Transport{
 		Dial: (&net.Dialer{
 			Timeout: 5 * time.Second,
@@ -175,7 +177,7 @@ func BroadcastMessage(class int, data []byte) {
 	jsonStr, _ := json.Marshal(toSend)
 
 	for iter.Next() {
-		req, err := http.NewRequest("POST", "http://" + string(iter.Key()) + "/newmsg" , bytes.NewBuffer(jsonStr))
+		req, err := http.NewRequest("POST", "http://" + string(iter.Key()) +  PORT + "/newmsg" , bytes.NewBuffer(jsonStr))
 		if err != nil{
 			continue
 		}
@@ -192,8 +194,10 @@ func updateTimestamp(ip string) {
 	if err != nil || ip == "127.0.0.1" || ip == "::1" || ip == "" {
 		return
 	}
+
 	stamp := []byte(string(time.Now().Unix()))
-	nodeDatabase.Put([]byte(ip), stamp, nil)
+	err = nodeDatabase.Put([]byte(ip), stamp, nil)
+	log.Error(err)
 }
 
 func makeRequest(url string, client *http.Client) ([]byte, error) {

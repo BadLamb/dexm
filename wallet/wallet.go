@@ -16,6 +16,7 @@ import (
 
 	"github.com/minio/blake2b-simd"
 	log "github.com/sirupsen/logrus"
+	"strings"
 )
 
 type Wallet struct {
@@ -88,9 +89,13 @@ func (w *Wallet) ExportWallet(filePath string) {
 	ioutil.WriteFile(filePath, result, 400)
 }
 
-// The old one was leaking private key data TODO fix
+
 func (w *Wallet) GetWallet() string {
-	return BytesToAddress([]byte(w.PrivKey.X.String() + w.PrivKey.Y.String()))
+	jsonPub, err := json.Marshal(w.PrivKey.Public())
+	if err != nil{
+		log.Error("Invalid key!")
+	}
+	return BytesToAddress(jsonPub)
 }
 
 func BytesToAddress(data []byte) string {
@@ -166,6 +171,11 @@ func (w *Wallet) NewTransaction (recipient string, amount int) (Transaction, err
 	if amount > w.Balance {
 		return Transaction{}, errors.New("Only cobwebs here!")
 	}
+
+	if !strings.HasPrefix(recipient, "Dexm") && len(recipient) > 30{
+		log.Error("Invalid recipient")
+	}
+
 	w.Nonce++
 	w.Balance -= amount
 
@@ -179,7 +189,7 @@ func (w *Wallet) NewTransaction (recipient string, amount int) (Transaction, err
 	result, _ := json.Marshal(newT)
 	
 	r, s := w.Sign(result)
-	
+
 	sig := make([]*big.Int, 2)
 	sig[0] = r
 	sig[1] = s

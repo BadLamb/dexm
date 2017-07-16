@@ -1,7 +1,6 @@
 package blockchain
 
 import (
-	"strconv"
 	"encoding/json"
 	"time"
 	"errors"
@@ -12,7 +11,7 @@ import (
 )
 
 type Block struct {
-	Index             int
+	Index             int64
 	Timestamp         int64
 	Hash              string
 	PreviousBlockHash string
@@ -46,7 +45,6 @@ func NewBlockChain() *BlockChain {
 
 	//leveldb has no way to determine the length of the database
 	//The key "len" will store that value
-	bc.DB.Put([]byte(string("len")), []byte(string(1)), nil)
 	bc.DB.Put([]byte(string(0)), genesis.GetBytes(), nil)
 
 	return bc
@@ -60,21 +58,17 @@ func OpenBlockchain() *BlockChain {
 	return &BlockChain{db}
 }
 
-func (bc *BlockChain) GetLen() int {
-	index, err := bc.DB.Get([]byte(string("len")), nil)
-	if err != nil {
-		log.Fatal("Invalid blockchain.db")
-		return -1
-	}
-	num, err := strconv.Atoi(string(index))
-	if err != nil {
+func (bc *BlockChain) GetLen() int64 {
+	size, err :=  bc.DB.SizeOf(nil)
+	if err != nil{
 		log.Error(err)
 		return -1
 	}
-	return num
+
+	return size.Sum()
 }
 
-func (bc *BlockChain) GetBlock(index int) (*Block, error) {
+func (bc *BlockChain) GetBlock(index int64) (*Block, error) {
 	data, err := bc.DB.Get([]byte(string(index)), nil)
 	if err != nil {
 		return nil, err

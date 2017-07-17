@@ -1,10 +1,10 @@
 package protocol
 
 import (
+	"bytes"
 	"encoding/json"
 	"net"
 	"net/http"
-	"bytes"
 	"strconv"
 	"time"
 
@@ -36,67 +36,9 @@ func InitPartialNode() {
 func StartSyncServer() {
 	log.Info("Opening node db..")
 	InitPartialNode()
+	
 	/* This goroutine contacts known nodes and asks for their ip list */
-	go func() {
-		iter := nodeDatabase.NewIterator(nil, nil)
-		netTransport := &http.Transport{
-			Dial: (&net.Dialer{
-				Timeout: 5 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout: 5 * time.Second,
-		}
-		netClient := &http.Client{
-			Timeout:   time.Second * 10,
-			Transport: netTransport,
-		}
-		for iter.Next() {
-			/* Clean up given IP and avoid getting tricked into ddosing a server */
-			ip := string(iter.Key())
-
-			data, err := makeRequest("http://"+ip+PORT+"/getaddr", netClient)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-
-			ips := make(map[string][]byte)
-
-			log.Info(string(data))
-
-			json.Unmarshal(data, &ips)
-
-			for k, v := range ips {
-				e := net.ParseIP(k)
-				if e == nil {
-					continue
-				}
-
-				_, err = nodeDatabase.Get([]byte(k), nil)
-				if err != nil {
-					nodeDatabase.Put([]byte(k), v, nil)
-
-					/* Once a new IP has been found contact it and ask it for the len of it's chain */
-					go func(k string) {
-						data, err := makeRequest("http://"+k+PORT+"/getlen", netClient)
-						numOfBlocks, err := strconv.Atoi(string(data))
-						if err != nil {
-							log.Error(err)
-							return
-						}
-						if numOfBlocks > bc.GetLen() {
-							log.Info("Found peer with longer chain! Need to sync this amount of blocks:", numOfBlocks-bc.GetLen())
-						}
-					}(k)
-
-					continue
-				}
-
-				// TODO Timestamp logic
-			}
-		}
-
-		iter.Release()
-	}()
+	go findPeers()
 
 	log.Info("Starting sync webserver...")
 	http.HandleFunc("/getaddr", getAddr)
@@ -137,7 +79,7 @@ func getBlock(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		data, err := bc.GetBlock(index)
+		data, err := bc.GetBlock(int64(index))
 		if err != nil {
 			w.Write([]byte(err.Error()))
 			return
@@ -149,7 +91,7 @@ func getBlock(w http.ResponseWriter, r *http.Request) {
 
 /* Returns how many blocks the client knows */
 func getMaxBlock(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(strconv.Itoa(bc.GetLen())))
+	w.Write([]byte(strconv.Itoa(int(bc.GetLen()))))
 }
 
 /* getMessage recives messages from other known peers about
@@ -159,7 +101,7 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func BroadcastMessage(class int, data []byte) {
-	toSend := Message{Id: class,Data: data}
+	toSend := Message{Id: class, Data: data}
 	InitPartialNode()
 	iter := nodeDatabase.NewIterator(nil, nil)
 
@@ -177,8 +119,8 @@ func BroadcastMessage(class int, data []byte) {
 	jsonStr, _ := json.Marshal(toSend)
 
 	for iter.Next() {
-		req, err := http.NewRequest("POST", "http://" + string(iter.Key()) +  PORT + "/newmsg" , bytes.NewBuffer(jsonStr))
-		if err != nil{
+		req, err := http.NewRequest("POST", "http://"+string(iter.Key())+PORT+"/newmsg", bytes.NewBuffer(jsonStr))
+		if err != nil {
 			continue
 		}
 
@@ -189,7 +131,7 @@ func BroadcastMessage(class int, data []byte) {
 
 /* Insert IP and timestamp into DB */
 func updateTimestamp(ip string) {
-	// TODO fix local ips
+	// TODO fix local ips properly
 	ip, _, err := net.SplitHostPort(ip)
 	if err != nil || ip == "127.0.0.1" || ip == "::1" || ip == "" {
 		return

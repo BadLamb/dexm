@@ -26,5 +26,5 @@ a big problem, we have developed systems that allow to publicly share many norma
 DB but it isn't coming anytime soon.
 
 ### Planned features:
-- **Indistinguishability Obfuscation**
+- **Indistinguishability Obfuscation for saving secrets on the blockchain**
 - **Distributed exchange run on the network that would allow varying rewards based on the price of the coin to keep profitability of mining stable**

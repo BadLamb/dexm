@@ -24,3 +24,7 @@ your users. The cost of these contracts depends on the redundancy level of your 
 DB contracts give you access to a public distributed KV DB. PublicDBs are a way of storing data across nodes, all the data on it is public but it isn't 
 a big problem, we have developed systems that allow to publicly share many normally private information such as password hashes. We are working on a private
 DB but it isn't coming anytime soon.
+
+### Planned features:
+- **Indistinguishability Obfuscation**
+- **Distributed exchange run on the network that would allow varying rewards based on the price of the coin to keep profitability of mining stable**

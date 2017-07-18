@@ -1,9 +1,11 @@
 package tests
 
 import (
-    "github.com/badlamb/dexm/wallet"
     "os"
     "testing"
+
+    "github.com/badlamb/dexm/wallet"
+    "github.com/badlamb/dexm/sync"
 )
 
 func TestWallet(t *testing.T) {
@@ -14,7 +16,7 @@ func TestWallet(t *testing.T) {
     }
 
     os.Remove("wallet.pem")
-    first.SaveKey("wallet.pem")
+    first.ExportWallet("wallet.pem")
     imp := wallet.ImportWallet("wallet.pem")
     os.Remove("wallet.pem")
 
@@ -23,4 +25,12 @@ func TestWallet(t *testing.T) {
     }
 
     imp.Sign([]byte("hh"))
+}
+
+func TestHotpatch(t *testing.T) {
+    diff := protocol.FindDiff("../v1", "../v2")
+    err := diff.Apply("../v1", "../v3")
+    if err != nil{
+        t.Error(err)
+    }
 }

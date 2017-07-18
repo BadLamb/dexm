@@ -56,6 +56,8 @@ func findPeers() {
 						log.Error(err)
 						return
 					}
+
+					// Possible race condition?
 					if int64(numOfBlocks) > bc.GetLen() {
 						log.Info("Found peer with longer chain! Need to sync this amount of blocks:", int64(numOfBlocks)-bc.GetLen())
 					}

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"time"
+	"os/exec"
 
 	"github.com/kr/binarydist"
 	"github.com/minio/blake2b-simd"
@@ -21,8 +22,7 @@ type Update struct {
 }
 
 /*
-WARNING: THIS DOES NOT WORK DO NOT USE IT 
-OR IT WILL BREAK YOUR BINARY, JUST DON'T k?
+WARNING: THIS IS VERY VERY VERY (Very) HACKY
 */
 
 func FindDiff(f1, f2 string) *Update{
@@ -51,12 +51,15 @@ func FindDiff(f1, f2 string) *Update{
 		return nil
 	}
 
+	hash1 := blake2b.Sum256(data1)
+	hash2 := blake2b.Sum256(data2)
+
 	return &Update{
 		IsDiff: true,
 		Timestamp: time.Now().Unix(),
 		Data: buf.Bytes(),
-		OldHash: blake2b.New256().Sum(data1),
-		NewHash: blake2b.New256().Sum(data2),
+		OldHash: hash1[:],
+		NewHash: hash2[:],
 	}
 }
 
@@ -69,34 +72,43 @@ func (u *Update) Apply(oldFile, newFile string) error {
 	defer oldReader.Close()
 
 	data, err := ioutil.ReadAll(oldReader)
-	if !testEq(blake2b.New256().Sum(data), u.OldHash){
-		//return errors.New("Old hashes don't match!")
+	hash := blake2b.Sum256(data)
+
+	if !TestEq(hash[:], u.OldHash){
+		return errors.New("Old hashes don't match!")
 	}
 
-	newFileS, err := os.Create(newFile)
+	file, _ := ioutil.TempFile("/tmp", "dexmpatch")
+	file.Write(u.Data)
+
+	err = exec.Command("bspatch", oldFile, newFile, file.Name()).Run()
+	if err != nil{
+		return err
+	}
+
+	exec.Command("chmod", newFile, "+x").Run()
+
+	newFileS, err := os.OpenFile(newFile, os.O_RDWR, 0666)
 	if err != nil{
 		return err
 	}
 	defer newFileS.Close()
-
-	err = binarydist.Patch(oldReader, newFileS, bytes.NewBuffer(u.Data))
-	if err != nil{
-		return err
-	}
 
 	data, err = ioutil.ReadAll(newFileS)
 	if err != nil{
 		return err
 	}
 
-	if !testEq(blake2b.New256().Sum(data), u.NewHash){
+	hash = blake2b.Sum256(data)
+	if !TestEq(hash[:], u.NewHash){
 		return errors.New("New hashes don't match!")
 	}
 
 	return nil
 }
 
-func testEq(a, b []byte) bool {
+// https://stackoverflow.com/questions/15311969/checking-the-equality-of-two-slices
+func TestEq(a, b []byte) bool {
     if a == nil && b == nil { 
         return true; 
     }

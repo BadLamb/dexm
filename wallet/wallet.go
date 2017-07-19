@@ -95,6 +95,7 @@ func (w *Wallet) GetWallet() string {
 	if err != nil{
 		log.Error("Invalid key!")
 	}
+	log.Info(string(jsonPub))
 	return BytesToAddress(jsonPub)
 }
 
@@ -158,7 +159,7 @@ func Base58Encoding(bin []byte) string {
 }
 
 type Transaction struct {
-	Sender string
+	Sender []byte
 	Recipient string
 	
 	Amount int
@@ -180,13 +181,20 @@ func (w *Wallet) NewTransaction (recipient string, amount int) (Transaction, err
 	w.Balance -= amount
 
 	var newT Transaction
-	newT.Sender = w.GetWallet()
+	x509Encoded, err := x509.MarshalPKIXPublicKey(&w.PrivKey.PublicKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	newT.Sender = x509Encoded
 	newT.Recipient = recipient
 	newT.Amount = amount
 	newT.SenderNonce = w.Nonce
 	newT.Timestamp = time.Now().Unix()
 	
 	result, _ := json.Marshal(newT)
+
+	log.Info(string(result))
 	
 	r, s := w.Sign(result)
 

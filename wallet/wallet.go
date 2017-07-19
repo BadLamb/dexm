@@ -5,31 +5,32 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"io/ioutil"
 	"math/big"
 	"time"
-	"encoding/json"
-	"errors"
 
 	"github.com/minio/blake2b-simd"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/mgo.v2/bson"
 	"strings"
 )
 
 type Wallet struct {
 	PrivKey *ecdsa.PrivateKey
-	Nonce int
+	Nonce   int
 	Balance int
 }
 
 type WalletFile struct {
 	// content to be converted in json
 	PrivKeyString string
-	Nonce int
-	Balance int
+	Nonce         int
+	Balance       int
 }
 
 func GenerateWallet() *Wallet {
@@ -40,7 +41,7 @@ func GenerateWallet() *Wallet {
 
 	return &Wallet{
 		PrivKey: priv,
-		Nonce: 0,
+		Nonce:   0,
 		Balance: 0,
 	}
 }
@@ -64,7 +65,7 @@ func ImportWallet(filePath string) *Wallet {
 	}
 	return &Wallet{
 		PrivKey: key,
-		Nonce: walletfile.Nonce,
+		Nonce:   walletfile.Nonce,
 		Balance: walletfile.Balance}
 }
 
@@ -76,23 +77,22 @@ func (w *Wallet) ExportWallet(filePath string) {
 	}
 	pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "WALLET PRIVATE KEY", Bytes: x509Encoded})
 	walletfile := WalletFile{
-		PrivKeyString : string(pemEncoded),
-		Nonce: w.Nonce,
-		Balance: w.Balance,
+		PrivKeyString: string(pemEncoded),
+		Nonce:         w.Nonce,
+		Balance:       w.Balance,
 	}
-	
+
 	result, err := json.Marshal(walletfile)
-	if err != nil{
+	if err != nil {
 		log.Error(err)
 	}
-	
+
 	ioutil.WriteFile(filePath, result, 400)
 }
 
-
 func (w *Wallet) GetWallet() string {
 	jsonPub, err := json.Marshal(w.PrivKey.Public())
-	if err != nil{
+	if err != nil {
 		log.Error("Invalid key!")
 	}
 	log.Info(string(jsonPub))
@@ -159,21 +159,21 @@ func Base58Encoding(bin []byte) string {
 }
 
 type Transaction struct {
-	Sender []byte
-	Recipient string
-	
-	Amount int
-	SenderNonce int
-	Timestamp int64
-	SenderSig []*big.Int
+	Sender    []byte `bson:"s"`
+	Recipient string `bson:"r"`
+
+	Amount      int       `bson:"a"`
+	SenderNonce int       `bson:"n"`
+	Timestamp   int64     `bson:"t"`
+	SenderSig   [2][]byte `bson:"rs"`
 }
 
-func (w *Wallet) NewTransaction (recipient string, amount int) (Transaction, error){
+func (w *Wallet) NewTransaction(recipient string, amount int) (Transaction, error) {
 	if amount > w.Balance {
 		return Transaction{}, errors.New("Only cobwebs here!")
 	}
 
-	if !strings.HasPrefix(recipient, "Dexm") && len(recipient) > 30{
+	if !strings.HasPrefix(recipient, "Dexm") && len(recipient) > 30 {
 		log.Error("Invalid recipient")
 	}
 
@@ -191,17 +191,16 @@ func (w *Wallet) NewTransaction (recipient string, amount int) (Transaction, err
 	newT.Amount = amount
 	newT.SenderNonce = w.Nonce
 	newT.Timestamp = time.Now().Unix()
-	
-	result, _ := json.Marshal(newT)
 
+	result, _ := bson.Marshal(newT)
 	log.Info(string(result))
-	
+
 	r, s := w.Sign(result)
 
-	sig := make([]*big.Int, 2)
-	sig[0] = r
-	sig[1] = s
-	
+	sig := [2][]byte{}
+	sig[0] = r.Bytes()
+	sig[1] = s.Bytes()
+
 	newT.SenderSig = sig
 	return newT, nil
 }

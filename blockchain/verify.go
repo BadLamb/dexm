@@ -1,32 +1,39 @@
 package blockchain
 
-import(
-    "encoding/json"
+import (
+	"crypto/ecdsa"
 	"crypto/x509"
-    "crypto/ecdsa"
+	"math/big"
 
-    "github.com/badlamb/dexm/wallet"
+	"github.com/badlamb/dexm/wallet"
+	"gopkg.in/mgo.v2/bson"
 )
 
 // TODO Verify balance and nonce
 
 func VerifyTransaction(encoded []byte) (bool, error) {
-    var transaction wallet.Transaction
-    err := json.Unmarshal(encoded, &transaction)
-    if err != nil{
-        return false, err
-    }
+	var transaction wallet.Transaction
+	err := bson.Unmarshal(encoded, &transaction)
+	if err != nil {
+		return false, err
+	}
 
-    r, s := transaction.SenderSig[0], transaction.SenderSig[1]
-    transaction.SenderSig = nil
+	r, s := transaction.SenderSig[0], transaction.SenderSig[1]
+	transaction.SenderSig = [2][]byte{}
 
-    genericPubKey, err := x509.ParsePKIXPublicKey(transaction.Sender)
-    if err != nil{
-        return false, err
-    }
+	rb := new(big.Int)
+	rb.SetBytes(r)
 
-    senderPub := genericPubKey.(*ecdsa.PublicKey)
+	sb := new(big.Int)
+	sb.SetBytes(s)
 
-    marshaled, _ := json.Marshal(transaction)
-    return ecdsa.Verify(senderPub, marshaled, r, s), nil
+	genericPubKey, err := x509.ParsePKIXPublicKey(transaction.Sender)
+	if err != nil {
+		return false, err
+	}
+
+	senderPub := genericPubKey.(*ecdsa.PublicKey)
+
+	marshaled, _ := bson.Marshal(transaction)
+	return ecdsa.Verify(senderPub, marshaled, rb, sb), nil
 }

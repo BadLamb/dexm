@@ -1,22 +1,23 @@
 package blockchain
 
 import (
-	"encoding/json"
-	"time"
 	"errors"
+	"time"
 
 	"github.com/minio/blake2b-simd"
 	log "github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type Block struct {
-	Index             int64
-	Timestamp         int64
-	Hash              string
-	PreviousBlockHash string
-	TransactionList   []byte
-	ContractList      []byte
+	Index             int64  `bson:"i"`
+	Timestamp         int64  `bson:"t"`
+	Hash              string `bson:"h"`
+	PreviousBlockHash string `bson:"p"`
+	TransactionList   []byte `bson:"l,omitempty"`
+	ContractList      []byte `bson:"c,omitempty"`
+	Miner             string
 }
 
 func (b *Block) CalculateHash() string {
@@ -59,8 +60,8 @@ func OpenBlockchain() *BlockChain {
 }
 
 func (bc *BlockChain) GetLen() int64 {
-	size, err :=  bc.DB.SizeOf(nil)
-	if err != nil{
+	size, err := bc.DB.SizeOf(nil)
+	if err != nil {
 		log.Error(err)
 		return -1
 	}
@@ -75,7 +76,7 @@ func (bc *BlockChain) GetBlock(index int64) (*Block, error) {
 	}
 
 	var newBlock Block
-	json.Unmarshal(data, &newBlock)
+	bson.Unmarshal(data, &newBlock)
 
 	return &newBlock, nil
 }
@@ -99,13 +100,13 @@ func (bc *BlockChain) NewBlock(transactionList, contractList []byte) {
 	bc.DB.Put([]byte(string("len")), []byte(string(lastIndex+2)), nil)
 }
 
-func (bc *BlockChain) VerifyNewBlockValidity(newBlock *Block) (bool, error){
+func (bc *BlockChain) VerifyNewBlockValidity(newBlock *Block) (bool, error) {
 	latestIndex := bc.GetLen() - 1
 	latestBlock, err := bc.GetBlock(latestIndex)
 	if err != nil {
 		return false, err
 	}
-	if newBlock.Index != latestIndex + 1 {
+	if newBlock.Index != latestIndex+1 {
 		err := errors.New("Block index is not correct")
 		return false, err
 	} else if latestBlock.Hash != newBlock.PreviousBlockHash {
@@ -126,12 +127,12 @@ func (b Block) GetBytes() []byte {
 	bCopy.PreviousBlockHash = b.PreviousBlockHash
 	bCopy.TransactionList = b.TransactionList
 	bCopy.ContractList = b.ContractList
-	
-	encoded, err := json.Marshal(bCopy)
-	if err != nil{
+
+	encoded, err := bson.Marshal(bCopy)
+	if err != nil {
 		log.Error(nil)
 		return nil
 	}
-	log.Debug(string(encoded))
+
 	return encoded
 }

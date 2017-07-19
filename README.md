@@ -25,6 +25,13 @@ DB contracts give you access to a public distributed KV DB. PublicDBs are a way 
 a big problem, we have developed systems that allow to publicly share many normally private information such as password hashes. We are working on a private
 DB but it isn't coming anytime soon.
 
+But it also has some other features that will make life easier for miners and holders of the currency:
+- Schelling datafeed to keep currency price stable by modifying block rewards    
+- A simple deamon that allows accepting DeXm payments with just 1 http request     
+- A hotpatching mechanism that allows quickly patching clients in case of a security problem, it's also secure because multiple people are required to approve
+ the patch before it gets accepted by the clients.    
+- A schelling mining mechanism that gives small continous rewards to miners
+
 ### Planned features:
 - **Indistinguishability Obfuscation for saving secrets on the blockchain**
 - **Distributed exchange run on the network that would allow varying rewards based on the price of the coin to keep profitability of mining stable**

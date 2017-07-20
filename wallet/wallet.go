@@ -54,7 +54,7 @@ func ImportWallet(filePath string) *Wallet {
 	var walletfile WalletFile
 	err = json.Unmarshal(walletfilejson, &walletfile)
 	if err != nil {
-		log.Error(err)
+		log.Fatal(err)
 	}
 	pemEncoded := []byte(walletfile.PrivKeyString)
 	decoded, _ := pem.Decode(pemEncoded)
@@ -180,17 +180,18 @@ func (w *Wallet) NewTransaction(recipient string, amount int) (Transaction, erro
 	w.Nonce++
 	w.Balance -= amount
 
-	var newT Transaction
 	x509Encoded, err := x509.MarshalPKIXPublicKey(&w.PrivKey.PublicKey)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	newT.Sender = x509Encoded
-	newT.Recipient = recipient
-	newT.Amount = amount
-	newT.SenderNonce = w.Nonce
-	newT.Timestamp = time.Now().Unix()
+	newT := Transaction{
+		Sender: x509Encoded,
+		Recipient: recipient,
+		Amount: amount,
+		SenderNonce: w.Nonce,
+		Timestamp: time.Now().Unix(),
+	}
 
 	result, _ := bson.Marshal(newT)
 	log.Info(string(result))

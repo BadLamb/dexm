@@ -82,7 +82,6 @@ func (bc *BlockChain) GetBlock(index int64) (*Block, error) {
 }
 
 func (bc *BlockChain) NewBlock(transactionList, contractList []byte) {
-	var newB Block
 	lastIndex := bc.GetLen() - 1
 	latestBlock, err := bc.GetBlock(lastIndex)
 	if err != nil {
@@ -90,14 +89,15 @@ func (bc *BlockChain) NewBlock(transactionList, contractList []byte) {
 		return
 	}
 
-	newB.Index = latestBlock.Index + 1
-	newB.Timestamp = time.Now().Unix()
-	newB.PreviousBlockHash = latestBlock.CalculateHash()
-	newB.TransactionList = transactionList
-	newB.ContractList = contractList
+	newB := Block{
+		Index:             latestBlock.Index + 1,
+		Timestamp:         time.Now().Unix(),
+		PreviousBlockHash: latestBlock.CalculateHash(),
+		TransactionList:   transactionList,
+		ContractList:      contractList,
+	}
 
 	bc.DB.Put([]byte(string(lastIndex+1)), newB.GetBytes(), nil)
-	bc.DB.Put([]byte(string("len")), []byte(string(lastIndex+2)), nil)
 }
 
 func (bc *BlockChain) VerifyNewBlockValidity(newBlock *Block) (bool, error) {
@@ -122,11 +122,8 @@ func (bc *BlockChain) VerifyNewBlockValidity(newBlock *Block) (bool, error) {
 func (b Block) GetBytes() []byte {
 	// copy the block without the Hash field
 	var bCopy Block
-	bCopy.Index = b.Index
-	bCopy.Timestamp = b.Timestamp
-	bCopy.PreviousBlockHash = b.PreviousBlockHash
-	bCopy.TransactionList = b.TransactionList
-	bCopy.ContractList = b.ContractList
+	*&bCopy = *&b
+	bCopy.Hash = ""
 
 	encoded, err := bson.Marshal(bCopy)
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 
 	"gopkg.in/mgo.v2/bson"
 	"github.com/badlamb/dexm/blockchain"
+	"github.com/badlamb/dexm/wallet"
 	log "github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
 	"io/ioutil"
@@ -114,12 +115,17 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 
 	// Transaction
 	if recived.Id == 1 {
-		res, err = blockchain.VerifyTransaction(recived.Data)
+		var t wallet.Transaction
+		err = bson.Unmarshal(recived.Data, &t)
 		if err != nil{
 			log.Error(err)
 			return
 		}
-		return
+
+		res, err = blockchain.VerifyTransactionSignature(t)
+		if err != nil {
+			return
+		}
 	}
 
 	// New block

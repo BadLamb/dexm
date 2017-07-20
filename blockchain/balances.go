@@ -1,12 +1,20 @@
 package blockchain
 
 import (
-	"strconv"
+    "crypto/ecdsa"
+    "errors"
+	"crypto/x509"
+	"math/big"
 
 	"github.com/badlamb/dexm/wallet"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 )
+
+type WalletInfo struct{
+    Balance int
+    Nonce int
+}
 
 func (bc *BlockChain) GenerateBalanceDB() {
 	len := bc.GetLen()
@@ -23,44 +31,96 @@ func (bc *BlockChain) GenerateBalanceDB() {
 	}
 }
 
-func (bc *BlockChain) GetBalance(wallet string) int {
+func (bc *BlockChain) GetBalance(wallet string) (int, int) {
 	val, err := bc.Balances.Get([]byte(wallet), nil)
 	if err != nil {
-		return 0
+        log.Error(err)
+		return 0, 0
 	}
 
-	bal, err := strconv.Atoi(string(val))
-	if err != nil {
-		log.Error(err)
-		return 0
-	}
+    var curr WalletInfo
+    err = bson.Unmarshal(val, &curr)
 
-	return bal
+    if err != nil{
+        log.Error(err)
+        return 0, 0
+    }
+
+	return curr.Balance, curr.Nonce
 }
 
-func (bc *BlockChain) SetBalance(wallet string, amount int) error {
-	return bc.Balances.Put([]byte(wallet), []byte(string(amount)), nil)
+func (bc *BlockChain) SetBalance(wallet string, amount, nonce int) error {
+    c := WalletInfo{
+        Balance: amount,
+        Nonce: nonce,
+    }
+
+    data, err := bson.Marshal(c)
+    if err != nil{
+        return err
+    }
+
+    return bc.Balances.Put([]byte(wallet), data, nil)
 }
 
-func (bc *BlockChain) ProcessBlock(curr *Block) {
-	var transactions []wallet.Transaction
-	err := bson.Unmarshal(curr.TransactionList, &transactions)
+func VerifyTransactionSignature(transaction wallet.Transaction) (bool, error) {
+	r, s := transaction.SenderSig[0], transaction.SenderSig[1]
+	transaction.SenderSig = [2][]byte{}
+
+	rb := new(big.Int)
+	rb.SetBytes(r)
+
+	sb := new(big.Int)
+	sb.SetBytes(s)
+
+	genericPubKey, err := x509.ParsePKIXPublicKey(transaction.Sender)
 	if err != nil {
-		log.Error(err)
-		return
+		return false, err
 	}
 
-	for _, v := range transactions {
-		sender := wallet.BytesToAddress(v.Sender)
-		balance := bc.GetBalance(sender)
+	senderPub := genericPubKey.(*ecdsa.PublicKey)
 
-		// TODO Add gas prices
-		if v.Amount <= balance {
-			bc.SetBalance(sender, balance-v.Amount)
-			bc.SetBalance(v.Recipient, bc.GetBalance(v.Recipient)+v.Amount)
-		}
-	}
+	marshaled, _ := bson.Marshal(transaction)
+	return ecdsa.Verify(senderPub, marshaled, rb, sb), nil
+}
+
+
+func (bc *BlockChain) ProcessBlock(curr *Block) error{
+    // Genesis node isn't a valid transaction
+    if curr.Index != 0{
+        var transactions []wallet.Transaction
+        err := bson.Unmarshal(curr.TransactionList, &transactions)
+        if err != nil {
+            return err
+        }
+
+        for _, v := range transactions {
+            status, err := VerifyTransactionSignature(v)
+            if err != nil{
+                return err
+            }
+
+            if !status {
+                return errors.New("Invalid signature")
+            }
+
+            sender := wallet.BytesToAddress(v.Sender)
+            balance, nonce := bc.GetBalance(sender)
+
+            // TODO Add gas prices
+            if v.Amount <= balance {
+                bc.SetBalance(sender, balance-v.Amount, nonce+1)
+
+                // As there was no new transaction on the recivers part the nonce doesn't change
+                rbal, rnonce := bc.GetBalance(v.Recipient)
+                bc.SetBalance(v.Recipient, rbal+v.Amount, rnonce)
+            }
+        }
+    }
 
 	// Give the reward for having mined the block.
-	bc.Balances.Put([]byte(curr.Miner), []byte(string(5)), nil)
+    bal, nonce := bc.GetBalance(curr.Miner)
+	bc.SetBalance(curr.Miner, bal+5, nonce)
+
+    return nil
 }

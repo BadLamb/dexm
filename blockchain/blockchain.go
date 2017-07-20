@@ -17,7 +17,7 @@ type Block struct {
 	PreviousBlockHash string `bson:"p"`
 	TransactionList   []byte `bson:"l,omitempty"`
 	ContractList      []byte `bson:"c,omitempty"`
-	Miner             string
+	Miner             string `bson:"m"`
 }
 
 func (b *Block) CalculateHash() string {
@@ -30,24 +30,24 @@ func (b *Block) CalculateHash() string {
 
 type BlockChain struct {
 	DB *leveldb.DB
+	Balances *leveldb.DB
 }
 
 func NewBlockChain() *BlockChain {
 	bc := OpenBlockchain()
 	// generate Genesis Block
 	genesis := Block{
+		Index: 0,
 		Timestamp:         time.Now().Unix(),
-		PreviousBlockHash: "",
 		TransactionList:   []byte("Donald Trump Jr was wrong to meet Russian, says FBI chief Christopher Wray"),
+		Miner: "DexmAohWqVstScKHYntofERjPNFqFo7DWdEr7T15pwQmHiG4e30ed4a6",
 	}
 
 	hash := genesis.CalculateHash()
 	genesis.Hash = hash
 
-	//leveldb has no way to determine the length of the database
-	//The key "len" will store that value
 	bc.DB.Put([]byte(string(0)), genesis.GetBytes(), nil)
-
+	bc.GenerateBalanceDB()
 	return bc
 }
 
@@ -56,7 +56,12 @@ func OpenBlockchain() *BlockChain {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return &BlockChain{db}
+
+	bal, err := leveldb.OpenFile("balances.db", nil) 
+	return &BlockChain{
+		DB: db,
+		Balances: bal,
+	}
 }
 
 func (bc *BlockChain) GetLen() int64 {
@@ -66,7 +71,7 @@ func (bc *BlockChain) GetLen() int64 {
 		return -1
 	}
 
-	return size.Sum()
+	return size.Sum() + 1
 }
 
 func (bc *BlockChain) GetBlock(index int64) (*Block, error) {
@@ -116,6 +121,7 @@ func (bc *BlockChain) VerifyNewBlockValidity(newBlock *Block) (bool, error) {
 		err := errors.New("Block hash is not correct")
 		return false, err
 	} // TODO check if has been correctly mined (i.e.: hash with leading zeros, all trans valid...)
+
 	return true, nil
 }
 

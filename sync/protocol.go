@@ -2,12 +2,12 @@ package protocol
 
 import (
 	"bytes"
-	"encoding/json"
 	"net"
 	"net/http"
 	"strconv"
 	"time"
 
+	"gopkg.in/mgo.v2/bson"
 	"github.com/badlamb/dexm/blockchain"
 	log "github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -36,7 +36,7 @@ func InitPartialNode() {
 func StartSyncServer() {
 	log.Info("Opening node db..")
 	InitPartialNode()
-	
+
 	/* This goroutine contacts known nodes and asks for their ip list */
 	go findPeers()
 
@@ -61,7 +61,7 @@ func getAddr(w http.ResponseWriter, r *http.Request) {
 
 	updateTimestamp(r.RemoteAddr)
 
-	value, err := json.Marshal(ips)
+	value, err := bson.Marshal(ips)
 	if err != nil {
 		log.Error(err)
 		return
@@ -97,7 +97,50 @@ func getMaxBlock(w http.ResponseWriter, r *http.Request) {
 /* getMessage recives messages from other known peers about
    events(transactions, blocks etc)*/
 func getMessage(w http.ResponseWriter, r *http.Request) {
-	log.Info(ioutil.ReadAll(r.Body))
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil{
+		log.Error(err)
+		return
+	}
+
+	var recived Message
+	err = bson.Unmarshal(body, &recived)
+	if err != nil{
+		log.Error(err)
+		return
+	}
+
+	res := false
+
+	// Transaction
+	if recived.Id == 1 {
+		res, err = blockchain.VerifyTransaction(recived.Data)
+		if err != nil{
+			log.Error(err)
+			return
+		}
+		return
+	}
+
+	// New block
+	if recived.Id == 2 {
+		var newBlock blockchain.Block
+		err = bson.Unmarshal(recived.Data, &newBlock)
+		if err != nil{
+			log.Error(err)
+			return
+		}
+
+		res, err = bc.VerifyNewBlockValidity(&newBlock)
+		if err != nil{
+			log.Error(err)
+			return
+		}
+	}
+
+	if res{
+		BroadcastMessage(recived.Id, recived.Data)
+	}
 }
 
 func BroadcastMessage(class int, data []byte) {
@@ -116,10 +159,10 @@ func BroadcastMessage(class int, data []byte) {
 		Transport: netTransport,
 	}
 
-	jsonStr, _ := json.Marshal(toSend)
+	bsonStr, _ := bson.Marshal(toSend)
 
 	for iter.Next() {
-		req, err := http.NewRequest("POST", "http://"+string(iter.Key())+PORT+"/newmsg", bytes.NewBuffer(jsonStr))
+		req, err := http.NewRequest("POST", "http://"+string(iter.Key())+PORT+"/newmsg", bytes.NewBuffer(bsonStr))
 		if err != nil {
 			continue
 		}

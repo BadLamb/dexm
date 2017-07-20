@@ -83,6 +83,25 @@ func main() {
 				return nil
 			},
 		},
+		{
+			Name:    "fixwallet",
+			Usage:   "fw [walletfile]",
+			Aliases: []string{"fw"},
+			Action: func(c *cli.Context) error {
+				// This updates balance and nonce of a given wallet.
+				walletPath := c.Args().Get(0)
+				senderWallet := wallet.ImportWallet(walletPath)
+
+				bc := blockchain.OpenBlockchain()
+				bal, nonce := bc.GetBalance(senderWallet.GetWallet())
+
+				senderWallet.Balance = bal
+				senderWallet.Nonce = nonce
+
+				senderWallet.ExportWallet(walletPath)
+				return nil
+			},
+		},
 	}
 
 	app.Run(os.Args)

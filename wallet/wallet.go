@@ -91,12 +91,12 @@ func (w *Wallet) ExportWallet(filePath string) {
 }
 
 func (w *Wallet) GetWallet() string {
-	jsonPub, err := json.Marshal(w.PrivKey.Public())
+	x509Encoded, err := x509.MarshalPKIXPublicKey(&w.PrivKey.PublicKey)
 	if err != nil {
-		log.Error("Invalid key!")
+		log.Fatal(err)
 	}
-	log.Info(string(jsonPub))
-	return BytesToAddress(jsonPub)
+
+	return BytesToAddress(x509Encoded)
 }
 
 func BytesToAddress(data []byte) string {

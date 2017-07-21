@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/minio/blake2b-simd"
+	"golang.org/x/crypto/ripemd160"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 	"strings"
@@ -101,8 +102,13 @@ func (w *Wallet) GetWallet() string {
 
 func BytesToAddress(data []byte) string {
 	hash := blake2b.Sum256(data)
-	sum := crc32.ChecksumIEEE(hash[:])
-	return fmt.Sprintf("Dexm%s%x", Base58Encoding(hash[:]), sum)
+	
+	h := ripemd160.New()
+	h.Write(hash[:])
+
+	sum := crc32.ChecksumIEEE(h.Sum(nil))
+
+	return fmt.Sprintf("Dexm%s%x", Base58Encoding(h.Sum(nil)), sum)
 }
 
 func (w *Wallet) Sign(data []byte) (r, s *big.Int) {

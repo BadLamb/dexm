@@ -40,7 +40,7 @@ func NewBlockChain() *BlockChain {
 		Index: 0,
 		Timestamp:         time.Now().Unix(),
 		TransactionList:   []byte("Donald Trump Jr was wrong to meet Russian, says FBI chief Christopher Wray"),
-		Miner: "DexmAohWqVstScKHYntofERjPNFqFo7DWdEr7T15pwQmHiG4e30ed4a6",
+		Miner: "DexmMmBKy5zsLEC3JK82FwGdFK53d7ae974ca8",
 	}
 
 	hash := genesis.CalculateHash()
@@ -125,10 +125,10 @@ func (bc *BlockChain) VerifyNewBlockValidity(newBlock *Block) (bool, error) {
 	return true, nil
 }
 
-func (b Block) GetBytes() []byte {
+func (b *Block) GetBytes() []byte {
 	// copy the block without the Hash field
 	var bCopy Block
-	*&bCopy = *&b
+	*&bCopy = *b
 	bCopy.Hash = ""
 
 	encoded, err := bson.Marshal(bCopy)
@@ -139,3 +139,14 @@ func (b Block) GetBytes() []byte {
 
 	return encoded
 }
+
+/*
+This function assumes the block is valid.
+TODO Implement adjustments based on Shelling results.
+func (b *Block) GetDifficulty(bc *BlockChain) int64 {
+	prevBlock, err := bc.GetBlock(b.Index - 1)
+	if err != nil{
+		log.Fatal(err)
+	}
+}
+*/

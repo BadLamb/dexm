@@ -20,6 +20,10 @@ type Block struct {
 	Miner             string `bson:"m"`
 }
 
+const(
+	GENESIS_DIFF = 2**64
+)
+
 func (b *Block) CalculateHash() string {
 	// Convert struct to binary in order to hash
 	buf := b.GetBytes()
@@ -142,11 +146,17 @@ func (b *Block) GetBytes() []byte {
 
 /*
 This function assumes the block is valid.
-TODO Implement adjustments based on Shelling results.
+TODO Implement adjustments based on Shelling results and hashing power
+ */
 func (b *Block) GetDifficulty(bc *BlockChain) int64 {
+	if b.Index == 0{
+		return GENESIS_DIFF
+	}
+
 	prevBlock, err := bc.GetBlock(b.Index - 1)
 	if err != nil{
 		log.Fatal(err)
 	}
+
+	return prevBlock.GetDifficulty(bc)
 }
-*/

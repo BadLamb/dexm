@@ -33,5 +33,5 @@ But it also has some other features that will make life easier for miners and ho
 - A schelling mining mechanism that gives small continous rewards to miners
 
 ### Planned features:
-- **Indistinguishability Obfuscation for saving secrets on the blockchain**
+- **Indistinguishability Obfuscation for saving secrets on the blockchain with Intel SGX support if we can get a license**
 - **Distributed exchange run on the network that would allow varying rewards based on the price of the coin to keep profitability of mining stable**

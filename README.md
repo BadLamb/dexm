@@ -9,6 +9,7 @@ These need no introduction, but unlike ETH these contracts are programmed in a v
 programming language. This is for reducing the possibility of another future DAO theft, another way the DexM Smart
 contracts differ from ETH is that they aren't compiled nor run in a VM, considering the very simple format of the decision
 tree we can emulate them at a decent speed and not lose the original source when putting them on the blockchain.
+If you want more flexibility you can also code your contracts in webassembly, allowing you to write them in (almost) any language.
 - **Function contracts**   
 Function contracts are a form of contract that responds to events like HTTP request. These contracts can be built in many
 different programming languages with very little difference from building a standard serverless app, but with the advantage 

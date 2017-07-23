@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/minio/blake2b-simd"
-	"golang.org/x/crypto/ripemd160"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ripemd160"
 	"gopkg.in/mgo.v2/bson"
 	"strings"
 )
@@ -102,7 +102,7 @@ func (w *Wallet) GetWallet() string {
 
 func BytesToAddress(data []byte) string {
 	hash := blake2b.Sum256(data)
-	
+
 	h := ripemd160.New()
 	h.Write(hash[:])
 
@@ -192,11 +192,11 @@ func (w *Wallet) NewTransaction(recipient string, amount int) (Transaction, erro
 	}
 
 	newT := Transaction{
-		Sender: x509Encoded,
-		Recipient: recipient,
-		Amount: amount,
+		Sender:      x509Encoded,
+		Recipient:   recipient,
+		Amount:      amount,
 		SenderNonce: w.Nonce,
-		Timestamp: time.Now().Unix(),
+		Timestamp:   time.Now().Unix(),
 	}
 
 	result, _ := bson.Marshal(newT)

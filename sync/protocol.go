@@ -28,7 +28,7 @@ var nodeDatabase *leveldb.DB
 var bc *blockchain.BlockChain
 
 func InitPartialNode() {
-	chain := blockchain.NewBlockChain()
+	chain := blockchain.OpenBlockchain()
 	bc = chain
 
 	nodeDatabase, _ = leveldb.OpenFile("ips.db", nil)

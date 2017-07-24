@@ -1,13 +1,13 @@
 package protocol
 
-import(
-    "net/http"
-    "net"
-    "time"
-    "encoding/json"
-    "strconv"
-    
-    log "github.com/sirupsen/logrus"
+import (
+	"encoding/json"
+	"net"
+	"net/http"
+	"strconv"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func findPeers() {
@@ -22,8 +22,9 @@ func findPeers() {
 		Timeout:   time.Second * 10,
 		Transport: netTransport,
 	}
+	
 	for iter.Next() {
-		/* Clean up given IP and avoid getting tricked into ddosing a server */
+		/* TODO clean up given IP and avoid getting tricked into ddosing a server */
 		ip := string(iter.Key())
 
 		data, err := makeRequest("http://"+ip+PORT+"/getaddr", netClient)
@@ -57,7 +58,7 @@ func findPeers() {
 						return
 					}
 
-					// Possible race condition?
+					// TODO Fix possible race condition
 					if int64(numOfBlocks) > bc.GetLen() {
 						log.Info("Found peer with longer chain! Need to sync this amount of blocks:", int64(numOfBlocks)-bc.GetLen())
 					}

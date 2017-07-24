@@ -1,11 +1,11 @@
 package protocol
 
 import (
-	"os"
 	"bytes"
 	"errors"
-	"time"
+	"os"
 	"os/exec"
+	"time"
 
 	"github.com/kr/binarydist"
 	"github.com/minio/blake2b-simd"
@@ -25,7 +25,7 @@ type Update struct {
 WARNING: THIS IS VERY VERY VERY (Very) HACKY
 */
 
-func FindDiff(f1, f2 string) *Update{
+func FindDiff(f1, f2 string) *Update {
 	reader1, err1 := os.Open(f1)
 	reader2, err2 := os.Open(f2)
 
@@ -39,7 +39,7 @@ func FindDiff(f1, f2 string) *Update{
 
 	buf := new(bytes.Buffer)
 	err := binarydist.Diff(reader1, reader2, buf)
-	if err != nil{
+	if err != nil {
 		log.Error(err)
 		return nil
 	}
@@ -55,17 +55,17 @@ func FindDiff(f1, f2 string) *Update{
 	hash2 := blake2b.Sum256(data2)
 
 	return &Update{
-		IsDiff: true,
+		IsDiff:    true,
 		Timestamp: time.Now().Unix(),
-		Data: buf.Bytes(),
-		OldHash: hash1[:],
-		NewHash: hash2[:],
+		Data:      buf.Bytes(),
+		OldHash:   hash1[:],
+		NewHash:   hash2[:],
 	}
 }
 
 func (u *Update) Apply(oldFile, newFile string) error {
 	oldReader, err1 := os.Open(oldFile)
-	if err1 != nil{
+	if err1 != nil {
 		return err1
 	}
 
@@ -74,7 +74,7 @@ func (u *Update) Apply(oldFile, newFile string) error {
 	data, err := ioutil.ReadAll(oldReader)
 	hash := blake2b.Sum256(data)
 
-	if !TestEq(hash[:], u.OldHash){
+	if !TestEq(hash[:], u.OldHash) {
 		return errors.New("Old hashes don't match!")
 	}
 
@@ -82,25 +82,26 @@ func (u *Update) Apply(oldFile, newFile string) error {
 	file.Write(u.Data)
 
 	err = exec.Command("bspatch", oldFile, newFile, file.Name()).Run()
-	if err != nil{
+	if err != nil {
 		return err
 	}
 
+	// Make file executable
 	exec.Command("chmod", newFile, "+x").Run()
 
 	newFileS, err := os.OpenFile(newFile, os.O_RDWR, 0666)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	defer newFileS.Close()
 
 	data, err = ioutil.ReadAll(newFileS)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 
 	hash = blake2b.Sum256(data)
-	if !TestEq(hash[:], u.NewHash){
+	if !TestEq(hash[:], u.NewHash) {
 		return errors.New("New hashes don't match!")
 	}
 
@@ -109,23 +110,23 @@ func (u *Update) Apply(oldFile, newFile string) error {
 
 // https://stackoverflow.com/questions/15311969/checking-the-equality-of-two-slices
 func TestEq(a, b []byte) bool {
-    if a == nil && b == nil { 
-        return true; 
-    }
+	if a == nil && b == nil {
+		return true
+	}
 
-    if a == nil || b == nil { 
-        return false; 
-    }
+	if a == nil || b == nil {
+		return false
+	}
 
-    if len(a) != len(b) {
-        return false
-    }
+	if len(a) != len(b) {
+		return false
+	}
 
-    for i := range a {
-        if a[i] != b[i] {
-            return false
-        }
-    }
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
 
-    return true
+	return true
 }

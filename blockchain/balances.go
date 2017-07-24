@@ -111,6 +111,8 @@ func (bc *BlockChain) ProcessBlock(curr *Block) error {
 			if v.Amount+v.Gas <= balance {
                 bc.SetBalance(sender, balance-(v.Amount+v.Gas), nonce+1)
 
+                totalGas += v.Gas
+
 				// As there was no new transaction on the recivers part the nonce doesn't change
 				rbal, rnonce := bc.GetBalance(v.Recipient)
 				bc.SetBalance(v.Recipient, rbal+v.Amount, rnonce)

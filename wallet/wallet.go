@@ -169,13 +169,14 @@ type Transaction struct {
 	Recipient string `bson:"r"`
 
 	Amount      int       `bson:"a"`
+	Gas         int       `bson:"g"`
 	SenderNonce int       `bson:"n"`
 	Timestamp   int64     `bson:"t"`
 	SenderSig   [2][]byte `bson:"rs"`
 }
 
-func (w *Wallet) NewTransaction(recipient string, amount int) (Transaction, error) {
-	if amount > w.Balance {
+func (w *Wallet) NewTransaction(recipient string, amount, gas int) (Transaction, error) {
+	if amount+gas > w.Balance {
 		return Transaction{}, errors.New("Only cobwebs here!")
 	}
 
@@ -184,7 +185,7 @@ func (w *Wallet) NewTransaction(recipient string, amount int) (Transaction, erro
 	}
 
 	w.Nonce++
-	w.Balance -= amount
+	w.Balance -= amount + gas
 
 	x509Encoded, err := x509.MarshalPKIXPublicKey(&w.PrivKey.PublicKey)
 	if err != nil {
@@ -195,6 +196,7 @@ func (w *Wallet) NewTransaction(recipient string, amount int) (Transaction, erro
 		Sender:      x509Encoded,
 		Recipient:   recipient,
 		Amount:      amount,
+		Gas:         gas,
 		SenderNonce: w.Nonce,
 		Timestamp:   time.Now().Unix(),
 	}

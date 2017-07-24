@@ -15,6 +15,11 @@ import (
 
 var ipcPages map[int]unsafe.Pointer
 
+/* 
+This function starts a sandboxed app with a shared memory page.
+It is done by forking, sandboxing and execve()ing the current process.
+Takes the filepath as a param and returns the pid and an error.append
+*/
 func StartDApp(file string) (int, error) {
 	if ipcPages == nil {
 		ipcPages = make(map[int]unsafe.Pointer)

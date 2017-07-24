@@ -1,9 +1,9 @@
 package blockchain
 
 import (
-    "crypto/ecdsa"
-    "errors"
+	"crypto/ecdsa"
 	"crypto/x509"
+	"errors"
 	"math/big"
 
 	"github.com/badlamb/dexm/wallet"
@@ -11,9 +11,9 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-type WalletInfo struct{
-    Balance int
-    Nonce int
+type WalletInfo struct {
+	Balance int
+	Nonce   int
 }
 
 func (bc *BlockChain) GenerateBalanceDB() {
@@ -27,40 +27,40 @@ func (bc *BlockChain) GenerateBalanceDB() {
 			return
 		}
 
-        bc.ProcessBlock(curr)
+		bc.ProcessBlock(curr)
 	}
 }
 
 func (bc *BlockChain) GetBalance(wallet string) (int, int) {
 	val, err := bc.Balances.Get([]byte(wallet), nil)
 	if err != nil {
-        log.Error(err)
+		log.Error(err)
 		return 0, 0
 	}
 
-    var curr WalletInfo
-    err = bson.Unmarshal(val, &curr)
+	var curr WalletInfo
+	err = bson.Unmarshal(val, &curr)
 
-    if err != nil{
-        log.Error(err)
-        return 0, 0
-    }
+	if err != nil {
+		log.Error(err)
+		return 0, 0
+	}
 
 	return curr.Balance, curr.Nonce
 }
 
 func (bc *BlockChain) SetBalance(wallet string, amount, nonce int) error {
-    c := WalletInfo{
-        Balance: amount,
-        Nonce: nonce,
-    }
+	c := WalletInfo{
+		Balance: amount,
+		Nonce:   nonce,
+	}
 
-    data, err := bson.Marshal(c)
-    if err != nil{
-        return err
-    }
+	data, err := bson.Marshal(c)
+	if err != nil {
+		return err
+	}
 
-    return bc.Balances.Put([]byte(wallet), data, nil)
+	return bc.Balances.Put([]byte(wallet), data, nil)
 }
 
 func VerifyTransactionSignature(transaction wallet.Transaction) (bool, error) {
@@ -84,43 +84,46 @@ func VerifyTransactionSignature(transaction wallet.Transaction) (bool, error) {
 	return ecdsa.Verify(senderPub, marshaled, rb, sb), nil
 }
 
+func (bc *BlockChain) ProcessBlock(curr *Block) error {
+	var totalGas = 0
 
-func (bc *BlockChain) ProcessBlock(curr *Block) error{
-    // Genesis node isn't a valid transaction
-    if curr.Index != 0{
-        var transactions []wallet.Transaction
-        err := bson.Unmarshal(curr.TransactionList, &transactions)
-        if err != nil {
-            return err
-        }
+	// Genesis node isn't a valid transaction
+	if curr.Index != 0 {
+		var transactions []wallet.Transaction
+		err := bson.Unmarshal(curr.TransactionList, &transactions)
+		if err != nil {
+			return err
+		}
 
-        for _, v := range transactions {
-            status, err := VerifyTransactionSignature(v)
-            if err != nil{
-                return err
-            }
+		for k, v := range transactions {
+			status, err := VerifyTransactionSignature(v)
+			if err != nil {
+				return err
+			}
 
-            if !status {
-                return errors.New("Invalid signature")
-            }
+			if !status {
+				return errors.New("Invalid signature")
+			}
 
-            sender := wallet.BytesToAddress(v.Sender)
-            balance, nonce := bc.GetBalance(sender)
+			sender := wallet.BytesToAddress(v.Sender)
+			balance, nonce := bc.GetBalance(sender)
 
-            // TODO Add gas prices
-            if v.Amount <= balance {
-                bc.SetBalance(sender, balance-v.Amount, nonce+1)
+			if v.Amount+v.Gas <= balance {
+				bc.SetBalance(sender, balance-v.Amount, nonce+1)
 
-                // As there was no new transaction on the recivers part the nonce doesn't change
-                rbal, rnonce := bc.GetBalance(v.Recipient)
-                bc.SetBalance(v.Recipient, rbal+v.Amount, rnonce)
-            }
-        }
-    }
+				// As there was no new transaction on the recivers part the nonce doesn't change
+				rbal, rnonce := bc.GetBalance(v.Recipient)
+				bc.SetBalance(v.Recipient, rbal+v.Amount, rnonce)
+			} else {
+				return errors.New("Transaction is invalid " + string(k))
+			}
+		}
+	}
 
 	// Give the reward for having mined the block.
-    bal, nonce := bc.GetBalance(curr.Miner)
-	bc.SetBalance(curr.Miner, bal+5, nonce)
+	bal, nonce := bc.GetBalance(curr.Miner)
 
-    return nil
+	bc.SetBalance(curr.Miner, bal+GetReward(5)+totalGas, nonce)
+
+	return nil
 }

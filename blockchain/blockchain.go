@@ -20,8 +20,9 @@ type Block struct {
 	Miner             string `bson:"m"`
 }
 
-const(
-	GENESIS_DIFF = 2**64
+const (
+	GENESIS_DIFF = 20000000000000
+	USD_REWARD   = 250
 )
 
 func (b *Block) CalculateHash() string {
@@ -33,7 +34,7 @@ func (b *Block) CalculateHash() string {
 }
 
 type BlockChain struct {
-	DB *leveldb.DB
+	DB       *leveldb.DB
 	Balances *leveldb.DB
 }
 
@@ -41,10 +42,10 @@ func NewBlockChain() *BlockChain {
 	bc := OpenBlockchain()
 	// generate Genesis Block
 	genesis := Block{
-		Index: 0,
-		Timestamp:         time.Now().Unix(),
-		TransactionList:   []byte("Donald Trump Jr was wrong to meet Russian, says FBI chief Christopher Wray"),
-		Miner: "DexmMmBKy5zsLEC3JK82FwGdFK53d7ae974ca8",
+		Index:           0,
+		Timestamp:       time.Now().Unix(),
+		TransactionList: []byte("Donald Trump Jr was wrong to meet Russian, says FBI chief Christopher Wray"),
+		Miner:           "DexmMmBKy5zsLEC3JK82FwGdFK53d7ae974ca8",
 	}
 
 	hash := genesis.CalculateHash()
@@ -61,9 +62,9 @@ func OpenBlockchain() *BlockChain {
 		log.Fatal(err)
 	}
 
-	bal, err := leveldb.OpenFile("balances.db", nil) 
+	bal, err := leveldb.OpenFile("balances.db", nil)
 	return &BlockChain{
-		DB: db,
+		DB:       db,
 		Balances: bal,
 	}
 }
@@ -147,16 +148,24 @@ func (b *Block) GetBytes() []byte {
 /*
 This function assumes the block is valid.
 TODO Implement adjustments based on Shelling results and hashing power
- */
+*/
 func (b *Block) GetDifficulty(bc *BlockChain) int64 {
-	if b.Index == 0{
+	if b.Index == 0 {
 		return GENESIS_DIFF
 	}
 
 	prevBlock, err := bc.GetBlock(b.Index - 1)
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
 
 	return prevBlock.GetDifficulty(bc)
+}
+
+/*
+Each block has a fixed reward in USD. usdPrice is found by
+uding schelling. We do this to keep the price of the coin somewhat stable.
+*/
+func GetReward(usdPrice int) int {
+	return USD_REWARD / usdPrice
 }

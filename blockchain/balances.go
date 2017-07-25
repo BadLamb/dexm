@@ -16,6 +16,7 @@ type WalletInfo struct {
 	Nonce   int
 }
 
+// Generates database of all balances in the blockchain
 func (bc *BlockChain) GenerateBalanceDB() {
 	len := bc.GetLen()
 
@@ -31,6 +32,7 @@ func (bc *BlockChain) GenerateBalanceDB() {
 	}
 }
 
+// Given a wallet returns balance and nonce
 func (bc *BlockChain) GetBalance(wallet string) (int, int) {
 	val, err := bc.Balances.Get([]byte(wallet), nil)
 	if err != nil {
@@ -107,6 +109,10 @@ func (bc *BlockChain) ProcessBlock(curr *Block) error {
 
 			sender := wallet.BytesToAddress(v.Sender)
 			balance, nonce := bc.GetBalance(sender)
+
+			if v.Amount/100 <= v.Gas{
+				return errors.New("Too much gas!")
+			}
 
 			if v.Amount+v.Gas <= balance {
                 bc.SetBalance(sender, balance-(v.Amount+v.Gas), nonce+1)

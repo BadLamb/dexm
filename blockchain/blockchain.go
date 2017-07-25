@@ -76,7 +76,7 @@ func (bc *BlockChain) GetLen() int64 {
 		return -1
 	}
 
-	return size.Sum() + 1
+	return size.Sum()
 }
 
 func (bc *BlockChain) GetBlock(index int64) (*Block, error) {

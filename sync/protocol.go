@@ -145,7 +145,7 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if res{
-		BroadcastMessage(recived.Id, recived.Data)
+		go BroadcastMessage(recived.Id, recived.Data)
 	}
 }
 

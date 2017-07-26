@@ -39,6 +39,8 @@ func main() {
 			Usage:   "sn",
 			Aliases: []string{"sn", "rn"},
 			Action: func(c *cli.Context) error {
+				//bc := blockchain.NewBlockChain()
+				//bc.GenerateBalanceDB()
 				protocol.StartSyncServer()
 				return nil
 			},
@@ -56,7 +58,7 @@ func main() {
 					log.Error(err)
 				}
 				senderWallet := wallet.ImportWallet(walletPath)
-				transaction, err := senderWallet.NewTransaction(recipient, amount)
+				transaction, err := senderWallet.NewTransaction(recipient, amount, 0)
 				if err != nil {
 					log.Error(err)
 					return nil
@@ -77,7 +79,6 @@ func main() {
 			Action: func(c *cli.Context) error {
 				bc := blockchain.OpenBlockchain()
 				bal, _ := bc.GetBalance(c.Args().Get(0))
-
 				log.Info("Balance for given wallet is ", bal)
 
 				return nil
@@ -88,7 +89,7 @@ func main() {
 			Usage:   "fw [walletfile]",
 			Aliases: []string{"fw"},
 			Action: func(c *cli.Context) error {
-				// This updates balance and nonce of a given wallet.
+				// This updates balance and nonce of a given wallet
 				walletPath := c.Args().Get(0)
 				senderWallet := wallet.ImportWallet(walletPath)
 

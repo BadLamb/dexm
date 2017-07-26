@@ -67,6 +67,8 @@ func main() {
 				senderWallet.ExportWallet(walletPath)
 				log.Info("Generated Transaction")
 				b, _ := bson.Marshal(transaction)
+
+				protocol.InitPartialNode()
 				protocol.BroadcastMessage(1, b)
 
 				return nil

@@ -151,7 +151,6 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 
 func BroadcastMessage(class int, data []byte) {
 	toSend := Message{Id: class, Data: data}
-	InitPartialNode()
 	iter := nodeDatabase.NewIterator(nil, nil)
 
 	netTransport := &http.Transport{

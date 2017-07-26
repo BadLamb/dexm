@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net"
 	"net/http"
+	"encoding/binary"
 	"strconv"
 	"time"
 
@@ -185,7 +186,10 @@ func updateTimestamp(ip string) {
 		return
 	}
 
-	stamp := []byte(string(time.Now().Unix()))
+	stamp := make([]byte, 8)
+	binary.LittleEndian.PutUint64(stamp, uint64(time.Now().Unix()))
+	log.Info(stamp)
+
 	err = nodeDatabase.Put([]byte(ip), stamp, nil)
 	log.Error(err)
 }

@@ -2,12 +2,18 @@ package protocol
 
 import (
 	"encoding/json"
+	"encoding/binary"
 	"net"
 	"net/http"
 	"strconv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+)
+
+const(
+	DELAY_BETWEEN_CLEANUPS = 1 * time.Second
+	EXPIRATION_PERIOD = 60
 )
 
 func findPeers() {
@@ -72,4 +78,20 @@ func findPeers() {
 	}
 
 	iter.Release()
+}
+
+func AutoIPCleanup(){
+	for {
+		iter := nodeDatabase.NewIterator(nil, nil)
+
+		for iter.Next() {
+			stamp := int64(binary.LittleEndian.Uint64(iter.Value()))
+
+			if stamp + EXPIRATION_PERIOD < time.Now().Unix(){
+				nodeDatabase.Delete(iter.Key(), nil)
+			}
+		}
+
+		time.Sleep(DELAY_BETWEEN_CLEANUPS)
+	}
 }

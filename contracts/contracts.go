@@ -2,7 +2,9 @@ package contracts
 
 import (
 	"crypto/x509"
+    "crypto/ecdsa"
 	"io/ioutil"
+    "math/big"
 
 	"github.com/badlamb/dexm/wallet"
 	"github.com/minio/blake2b-simd"
@@ -76,4 +78,25 @@ func CreateCDNContract(filenames []string, maxCacheNodes uint16, w *wallet.Walle
 	toSign.SenderSig = sig
 
 	return toSign, nil
+}
+
+func VerifyContract(c *Contract) (bool, error) {
+    r, s := c.SenderSig[0], c.SenderSig[1]
+	c.SenderSig = [2][]byte{}
+
+	rb := new(big.Int)
+	rb.SetBytes(r)
+
+	sb := new(big.Int)
+	sb.SetBytes(s)
+
+	genericPubKey, err := x509.ParsePKIXPublicKey(c.PubKey)
+	if err != nil {
+		return false, err
+	}
+
+	senderPub := genericPubKey.(*ecdsa.PublicKey)
+
+	marshaled, _ := bson.Marshal(c)
+	return ecdsa.Verify(senderPub, marshaled, rb, sb), nil
 }

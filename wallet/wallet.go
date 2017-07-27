@@ -30,6 +30,7 @@ type Wallet struct {
 type WalletFile struct {
 	// content to be converted in json
 	PrivKeyString string
+	Address string
 	Nonce         int
 	Balance       int
 }
@@ -78,6 +79,7 @@ func (w *Wallet) ExportWallet(filePath string) {
 	}
 	pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "WALLET PRIVATE KEY", Bytes: x509Encoded})
 	walletfile := WalletFile{
+		Address: w.GetWallet(),
 		PrivKeyString: string(pemEncoded),
 		Nonce:         w.Nonce,
 		Balance:       w.Balance,

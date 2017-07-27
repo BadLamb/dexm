@@ -45,7 +45,7 @@ func NewBlockChain() *BlockChain {
 		Index:           0,
 		Timestamp:       time.Now().Unix(),
 		TransactionList: []byte("Donald Trump Jr was wrong to meet Russian, says FBI chief Christopher Wray"),
-		Miner:           "DexmMmBKy5zsLEC3JK82FwGdFK53d7ae974ca8",
+		Miner:           "DexmRGumsYPEB78aD6utysna9Yvs3Fu9614001e",
 	}
 
 	hash := genesis.CalculateHash()
@@ -76,7 +76,7 @@ func (bc *BlockChain) GetLen() int64 {
 		return -1
 	}
 
-	return size.Sum()
+	return size.Sum() + 1 
 }
 
 func (bc *BlockChain) GetBlock(index int64) (*Block, error) {

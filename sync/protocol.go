@@ -3,6 +3,7 @@ package protocol
 import (
 	"bytes"
 	"net"
+	"os"
 	"net/http"
 	"encoding/binary"
 	"strconv"
@@ -29,10 +30,23 @@ var nodeDatabase *leveldb.DB
 var bc *blockchain.BlockChain
 
 func InitPartialNode() {
-	chain := blockchain.OpenBlockchain()
-	bc = chain
+	if isFolder("blockchain.db"){
+		bc = blockchain.OpenBlockchain()
+	}else{
+		blockchain.NewBlockChain()
+	}
 
+	// TODO Add first peer insertion
 	nodeDatabase, _ = leveldb.OpenFile("ips.db", nil)
+}
+
+// Inspired by https://stackoverflow.com/questions/10510691/how-to-check-whether-a-file-or-directory-denoted-by-a-path-exists-in-golang
+func isFolder(path string) bool{
+	_, err := os.Stat(path)
+	if err != nil { return true }
+	if os.IsNotExist(err) { return false }
+
+	return true
 }
 
 func StartSyncServer() {

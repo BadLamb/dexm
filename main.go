@@ -56,6 +56,7 @@ func main() {
 				amount, err := strconv.Atoi(c.Args().Get(2))
 				if err != nil {
 					log.Error(err)
+					return nil
 				}
 				senderWallet := wallet.ImportWallet(walletPath)
 				transaction, err := senderWallet.NewTransaction(recipient, amount, 0)

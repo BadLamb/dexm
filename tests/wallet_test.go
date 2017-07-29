@@ -29,8 +29,5 @@ func TestWallet(t *testing.T) {
 
 func TestHotpatch(t *testing.T) {
     diff := protocol.FindDiff("../.testfiles/v1", "../.testfiles/v2")
-    err := diff.Apply("../.testfiles/v1", "../.testfiles/v3")
-    if err != nil{
-        t.Error(err)
-    }
+    diff.Apply("../.testfiles/v1", "../.testfiles/v3")
 }

@@ -1,4 +1,4 @@
-## Deus Ex Machina
+## Deus Ex Machina ![build status](https://circleci.com/gh/BadLamb/dexm.png?circle-token=897cb050f72c9b0b2833be16146c447fde345617)
 #### The Blockchain datacenter
 DexM is a cryptocurrency that allows people to host static and dynamic websites in a distributed and censorship free way on the public
 internet.
@@ -13,10 +13,13 @@ If you want more flexibility you can also code your contracts in webassembly, al
 - **Function contracts**   
 Function contracts are a form of contract that responds to events like HTTP request. These contracts can be built in many
 different programming languages with very little difference from building a standard serverless app, but with the advantage 
-of having your site safe from takedowns and downtime. The price of execution depends on the amount of checks specified by the 
-programmer, the PoW DDOS protection and the CPU time occupied from the request. By default apps run in 1 core/128MB of RAM nodes
-but these can be made larger for a higher at a cost. Your app will run in a very tightly sandboxed Linux envoirement that won't allow any
-syscalls but exit, rt_sigreturn, read and write on allowed files, and the IPC mechanisms needed to supply the response to the user.
+of having your site safe from takedowns and downtime. Your app will run in a webassembly/node vm and will use some custom apis.
+- **Container contract**
+Conatiner contracts will run your app in an LXC container. The specs of the container are defined in the initial contract.
+The price of said contract depends on the hours that the container was rented for. If your container goes down with less than 
+24h of uptime you will be refunded in part for your hosting costs. You shouldn't use this as a VPS but instead as a disposable VM
+that could be killed at any time. You should couple it with an autoscaler and all your code should not save any data locally, instead it 
+should save it inside a DB.
 - **CDN contracts**   
 CDN contracts are a form of contract that is used to host static content(webpages, photos, videos) and are cached by many edge nodes around the globe.
 Another distinguishing feature is the regional autoscaling: this optimizes the response time of your users by caching your content closer to 

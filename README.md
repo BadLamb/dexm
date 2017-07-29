@@ -14,20 +14,6 @@ If you want more flexibility you can also code your contracts in webassembly, al
 Function contracts are a form of contract that responds to events like HTTP request. These contracts can be built in many
 different programming languages with very little difference from building a standard serverless app, but with the advantage 
 of having your site safe from takedowns and downtime. Your app will run in a webassembly/node vm and will use some custom apis.
-- **Container contract**
-Conatiner contracts will run your app in an LXC container. The specs of the container are defined in the initial contract.
-The price of said contract depends on the hours that the container was rented for. If your container goes down with less than 
-24h of uptime you will be refunded in part for your hosting costs. You shouldn't use this as a VPS but instead as a disposable VM
-that could be killed at any time. You should couple it with an autoscaler and all your code should not save any data locally, instead it 
-should save it inside a DB.
-- **CDN contracts**   
-CDN contracts are a form of contract that is used to host static content(webpages, photos, videos) and are cached by many edge nodes around the globe.
-Another distinguishing feature is the regional autoscaling: this optimizes the response time of your users by caching your content closer to 
-your users. The cost of these contracts depends on the redundancy level of your data, and the GBs of data served to clients.
-- **DB Contracts**   
-DB contracts give you access to a public distributed KV DB. PublicDBs are a way of storing data across nodes, all the data on it is public but it isn't 
-a big problem, we have developed systems that allow to publicly share many normally private information such as password hashes. We are working on a private
-DB but it isn't coming anytime soon.
 
 But it also has some other features that will make life easier for miners and holders of the currency:
 - Schelling datafeed to keep currency price stable by modifying block rewards    

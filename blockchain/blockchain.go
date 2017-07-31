@@ -165,6 +165,8 @@ func (b *Block) GetDifficulty(bc *BlockChain) int64 {
 /*
 Each block has a fixed reward in USD. usdPrice is found by
 uding schelling. We do this to keep the price of the coin somewhat stable.
+There is one huge flaw however: you will get a good hash about 2**256/difficulty
+times, thus with a higher difficulty the reward should grow.
 */
 func GetReward(usdPrice int) int {
 	return USD_REWARD / usdPrice

@@ -110,7 +110,13 @@ func BytesToAddress(data []byte) string {
 
 	sum := crc32.ChecksumIEEE(h.Sum(nil))
 
-	return fmt.Sprintf("Dexm%s%x", Base58Encoding(h.Sum(nil)), sum)
+	wal := fmt.Sprintf("Dexm%s%x", Base58Encoding(h.Sum(nil)), sum)
+
+	if wal == "DexmmvzDy9dUDpRYbfUn2aHsEjZTBYdbedcaf9b" {
+		return "DexmProofOfBurn"
+	}
+
+	return wal
 }
 
 func (w *Wallet) Sign(data []byte) (r, s *big.Int) {

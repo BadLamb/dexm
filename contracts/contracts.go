@@ -3,6 +3,8 @@ package contracts
 import (
 	"crypto/ecdsa"
 	"crypto/x509"
+	"github.com/badlamb/dexm/wallet"
+	"log"
 	"math/big"
 
 	"gopkg.in/mgo.v2/bson"
@@ -12,6 +14,7 @@ const (
 	SMART_CONTRACT    = 1
 	FUNCTION_CONTRACT = 2
 	CDN_CONTRACT      = 3
+	CDN_BUNDLE        = 4
 )
 
 type Contract struct {
@@ -45,4 +48,24 @@ func VerifyContract(c *Contract) (bool, error) {
 
 	marshaled, _ := bson.Marshal(c)
 	return ecdsa.Verify(senderPub, marshaled, rb, sb), nil
+}
+
+func (c *Contract) AppendKeyAndSign(w *wallet.Wallet) {
+	x509Encoded, err := x509.MarshalPKIXPublicKey(&w.PrivKey.PublicKey)
+	if err != nil {
+		log.Fatal("AppendKeyAndSign " + err.Error())
+	}
+
+	c.PubKey = x509Encoded
+
+	bsond, _ := bson.Marshal(c)
+
+	// Sign the contract
+	r, s := w.Sign(bsond)
+
+	sig := [2][]byte{}
+	sig[0] = r.Bytes()
+	sig[1] = s.Bytes()
+
+	c.SenderSig = sig
 }

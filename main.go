@@ -3,9 +3,11 @@ package main
 import (
 	"os"
 	"strconv"
+	"path/filepath"
 
 	"github.com/badlamb/dexm/blockchain"
 	"github.com/badlamb/dexm/sync"
+	"github.com/badlamb/dexm/contracts"
 	"github.com/badlamb/dexm/wallet"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -41,6 +43,7 @@ func main() {
 			Action: func(c *cli.Context) error {
 				//bc := blockchain.NewBlockChain()
 				//bc.GenerateBalanceDB()
+				go contracts.StartCDNServer()
 				protocol.StartSyncServer()
 				return nil
 			},
@@ -103,6 +106,35 @@ func main() {
 				senderWallet.Nonce = nonce
 
 				senderWallet.ExportWallet(walletPath)
+				return nil
+			},
+		},
+		{
+			Name:    "makecdn",
+			Usage:   "mc [static folder] [wallet]",
+			Aliases: []string{"mc"},
+			Action: func(c *cli.Context) error {
+				ownerWallet := wallet.ImportWallet(c.Args().Get(1))
+				files := []string{}
+
+				err := filepath.Walk(c.Args().Get(0), func(path string, f os.FileInfo, err error) error {
+					if !f.IsDir(){
+						files = append(files, path)
+					}
+					return nil
+				})
+
+				if err != nil{
+					return err
+				}
+				
+				cont, err := contracts.CreateCDNContract(files, 1, ownerWallet)
+				if err != nil{
+					log.Fatal(err)
+				}
+
+				log.Fatal(cont.SelectCDNNodes(ownerWallet))
+
 				return nil
 			},
 		},

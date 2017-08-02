@@ -1,13 +1,15 @@
 package contracts
 
 import (
+	"strings"
+	"net/http"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/badlamb/dexm/wallet"
+	"gopkg.in/kothar/brotli-go.v0/dec"
 	"github.com/minio/blake2b-simd"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/kothar/brotli-go.v0/enc"
@@ -115,7 +117,6 @@ func ProcessCDNBundle(data []byte) error {
 	bson.Unmarshal(decoded.Definition, &bundle)
 
 	filepath := FindCDNFilePath(bundle.Filename, wallet.BytesToAddress(decoded.PubKey))
-	log.Info(filepath)
 	ioutil.WriteFile(filepath, bundle.File, 0644)
 
 	return nil
@@ -150,4 +151,22 @@ func FindCDNFilePath(filename, ownerWallet string) string {
 	// could lead to a path traversal vulnerabilty. OWASP advides urlencoding
 	// paths to avoid .. and ~
 	return filepath.Join(archivePath, ownerWallet+url.QueryEscape(filename))
+}
+
+func StartCDNServer() {
+	http.HandleFunc("/", cdnServe)
+	http.ListenAndServe(":8080", nil)
+}
+
+func cdnServe(w http.ResponseWriter, r* http.Request) {
+	filename := strings.TrimLeft(r.URL.Path, "/")
+	cdnPath := FindCDNFilePath(filename, "DexmProofOfBurn")
+
+	compressed, err := ioutil.ReadFile(cdnPath)
+	if err != nil{
+		return
+	}
+
+	decompressed, _ := dec.DecompressBuffer(compressed, make([]byte, 0))
+	w.Write(decompressed)
 }

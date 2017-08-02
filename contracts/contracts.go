@@ -1,13 +1,10 @@
 package contracts
 
 import (
+	"crypto/ecdsa"
 	"crypto/x509"
-    "crypto/ecdsa"
-	"io/ioutil"
-    "math/big"
+	"math/big"
 
-	"github.com/badlamb/dexm/wallet"
-	"github.com/minio/blake2b-simd"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -25,63 +22,12 @@ type Contract struct {
 }
 
 type CDNContract struct {
-	Hashes        [][32]byte `bson:"h"`
-	MaxCacheNodes uint16     `bson:"n"`
-}
-
-func CreateCDNContract(filenames []string, maxCacheNodes uint16, w *wallet.Wallet) (Contract, error) {
-	hashes := [][32]byte{}
-
-	// Make hashes of all files
-	for i := 0; i < int(maxCacheNodes); i++ {
-		currFile, err := ioutil.ReadFile(filenames[i])
-		if err != nil {
-			return Contract{}, err
-		}
-
-		hash := blake2b.Sum256(currFile)
-		hashes = append(hashes, hash)
-	}
-
-	// Make body of contract
-	cdn := CDNContract{
-		Hashes:        hashes,
-		MaxCacheNodes: maxCacheNodes,
-	}
-
-	encoded, err := bson.Marshal(cdn)
-	if err != nil {
-		return Contract{}, err
-	}
-
-	x509Encoded, err := x509.MarshalPKIXPublicKey(w.PrivKey.PublicKey)
-	if err != nil {
-		return Contract{}, err
-	}
-
-	// Put it in the envelope
-	toSign := Contract{
-		PubKey:     x509Encoded,
-		Type:       CDN_CONTRACT,
-		Definition: encoded,
-	}
-
-	bsond, _ := bson.Marshal(toSign)
-
-	// Sign the contract
-	r, s := w.Sign(bsond)
-
-	sig := [2][]byte{}
-	sig[0] = r.Bytes()
-	sig[1] = s.Bytes()
-
-	toSign.SenderSig = sig
-
-	return toSign, nil
+	Hashes        map[string][32]byte `bson:"h"`
+	MaxCacheNodes uint16              `bson:"n"`
 }
 
 func VerifyContract(c *Contract) (bool, error) {
-    r, s := c.SenderSig[0], c.SenderSig[1]
+	r, s := c.SenderSig[0], c.SenderSig[1]
 	c.SenderSig = [2][]byte{}
 
 	rb := new(big.Int)

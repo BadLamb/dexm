@@ -1,17 +1,17 @@
 package contracts
 
 import (
-	"strings"
-	"net/http"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/badlamb/dexm/wallet"
-	"gopkg.in/kothar/brotli-go.v0/dec"
 	"github.com/minio/blake2b-simd"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/kothar/brotli-go.v0/dec"
 	"gopkg.in/kothar/brotli-go.v0/enc"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -114,10 +114,16 @@ func ProcessCDNBundle(data []byte) error {
 	}
 
 	var bundle CDNFileBundle
-	bson.Unmarshal(decoded.Definition, &bundle)
+	err = bson.Unmarshal(decoded.Definition, &bundle)
+	if err != nil {
+		return err
+	}
 
 	filepath := FindCDNFilePath(bundle.Filename, wallet.BytesToAddress(decoded.PubKey))
-	ioutil.WriteFile(filepath, bundle.File, 0644)
+	err = ioutil.WriteFile(filepath, bundle.File, 0644)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -158,12 +164,14 @@ func StartCDNServer() {
 	http.ListenAndServe(":8080", nil)
 }
 
-func cdnServe(w http.ResponseWriter, r* http.Request) {
+func cdnServe(w http.ResponseWriter, r *http.Request) {
 	filename := strings.TrimLeft(r.URL.Path, "/")
+
+	// TODO Fix this, replace with actual owner
 	cdnPath := FindCDNFilePath(filename, "DexmProofOfBurn")
 
 	compressed, err := ioutil.ReadFile(cdnPath)
-	if err != nil{
+	if err != nil {
 		return
 	}
 

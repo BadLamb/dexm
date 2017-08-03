@@ -20,14 +20,14 @@ func CreateCDNContract(files []string, maxCacheNodes uint16, w *wallet.Wallet) (
 	hashes := make(map[string][32]byte)
 
 	// Make hashes of all files
-	for i := 0; i < len(files); i++ {
-		currFile, err := ioutil.ReadFile(files[i])
+	for _, file := range files {
+		currFile, err := ioutil.ReadFile(file)
 		if err != nil {
 			return Contract{}, err
 		}
 
 		hash := blake2b.Sum256(currFile)
-		hashes[files[i]] = hash
+		hashes[file] = hash
 	}
 
 	// Make body of contract

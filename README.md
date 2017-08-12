@@ -14,7 +14,7 @@ If you want more flexibility you can also code your contracts in webassembly, al
 Function contracts are a form of contract that responds to events like HTTP request. These contracts can be built in many
 different programming languages with very little difference from building a standard serverless app, but with the advantage 
 of having your site safe from takedowns and downtime. Your app will run in a webassembly/node vm and will use some custom apis.
-- **CDN contracts**
+- **CDN contracts**   
 CDN contracts are a form of contract that is used to host static content(webpages, photos, videos) and are cached by many edge nodes around the globe. Another distinguishing feature is the regional autoscaling: this optimizes the response time of your users by caching your content closer to your users. The cost of these contracts depends on the redundancy level of your data, and the GBs of data served to clients.
 
 But it also has some other features that will make life easier for miners and holders of the currency:

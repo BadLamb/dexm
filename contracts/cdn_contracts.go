@@ -63,9 +63,7 @@ func (c Contract) SelectCDNNodes(w *wallet.Wallet) error {
 	if err != nil {
 		return err
 	}
-
-	// TODO Randomly select nodes based on proof of burn.
-
+	
 	// Compression settings, this way bundles are smaller
 	params := enc.NewBrotliParams()
 	params.SetQuality(4)
@@ -99,6 +97,7 @@ func (c Contract) SelectCDNNodes(w *wallet.Wallet) error {
 
 		toSend.AppendKeyAndSign(w)
 		res, err := bson.Marshal(toSend)
+
 		// TODO Send bundle to all selected nodes
 		ProcessCDNBundle(res)
 	}
@@ -154,8 +153,8 @@ func FindCDNFilePath(filename, ownerWallet string) string {
 	}
 
 	// This part is very fragile, if the path is not properly escaped then it
-	// could lead to a path traversal vulnerabilty. OWASP advides urlencoding
-	// paths to avoid .. and ~
+	// could lead to a path traversal vulnerabilty. OWASP advises urlencoding
+	// paths to avoid .. and ~. ownerWallet is safe because of base58.
 	return filepath.Join(archivePath, ownerWallet+url.QueryEscape(filename))
 }
 

@@ -81,7 +81,7 @@ func getAddr(w http.ResponseWriter, r *http.Request) {
 	var value []byte
 	var err error
 
-	if r.Form.Get("json") != "true"{
+	if r.URL.Query().Get("json") != "true"{
 		value, err = bson.Marshal(ips)
 	}else{
 		value, err = json.Marshal(ips)

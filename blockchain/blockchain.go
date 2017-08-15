@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"math/big"
 	"errors"
 	"time"
 
@@ -110,9 +111,17 @@ func (bc *BlockChain) NewBlock(transactionList, contractList []byte) {
 	bc.DB.Put([]byte(string(lastIndex+1)), newB.GetBytes(), nil)
 }
 
-func (bc *BlockChain) VerifyNewBlockValidity(newBlock *Block) (bool, error) {
+type PoWBlock struct{
+	Nonce big.Int
+	MinedBlock *Block
+}
+
+func (bc *BlockChain) VerifyNewBlockValidity(minedBlock *PoWBlock) (bool, error) {
 	latestIndex := bc.GetLen() - 1
 	latestBlock, err := bc.GetBlock(latestIndex)
+
+	newBlock := minedBlock.MinedBlock
+
 	if err != nil {
 		return false, err
 	}
@@ -125,7 +134,16 @@ func (bc *BlockChain) VerifyNewBlockValidity(newBlock *Block) (bool, error) {
 	} else if newBlock.Hash != newBlock.CalculateHash() {
 		err := errors.New("Block hash is not correct")
 		return false, err
-	} // TODO check if has been correctly mined (i.e.: hash with leading zeros, all trans valid...)
+	}
+
+	/*hash, err := SumDexmHashVOne(minedBlock.Nonce.Bytes(), newBlock.GetBytes())
+	if err != nil{
+		return false, err
+	}
+
+	if hash > newBlock.GetDifficulty(bc){
+		return false, errors.New("")
+	}*/
 
 	return true, nil
 }
@@ -149,9 +167,11 @@ func (b *Block) GetBytes() []byte {
 This function assumes the block is valid.
 TODO Implement adjustments based on Shelling results and hashing power
 */
-func (b *Block) GetDifficulty(bc *BlockChain) int64 {
+func (b *Block) GetDifficulty(bc *BlockChain) *big.Int {
 	if b.Index == 0 {
-		return GENESIS_DIFF
+		genesis := new(big.Int)
+		genesis.SetInt64(GENESIS_DIFF)
+		return genesis
 	}
 
 	prevBlock, err := bc.GetBlock(b.Index - 1)

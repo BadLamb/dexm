@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"net/http"
+	"encoding/json"
 	"encoding/binary"
 	"strconv"
 	"time"
@@ -77,7 +78,15 @@ func getAddr(w http.ResponseWriter, r *http.Request) {
 
 	updateTimestamp(r.RemoteAddr)
 
-	value, err := bson.Marshal(ips)
+	var value []byte
+	var err error
+
+	if r.Form.Get("json") != "true"{
+		value, err = bson.Marshal(ips)
+	}else{
+		value, err = json.Marshal(ips)
+	}
+
 	if err != nil {
 		log.Error(err)
 		return
@@ -145,7 +154,7 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 
 	// New block
 	if recived.Id == 2 {
-		var newBlock blockchain.Block
+		var newBlock blockchain.PoWBlock
 		err = bson.Unmarshal(recived.Data, &newBlock)
 		if err != nil{
 			log.Error(err)
@@ -164,6 +173,8 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+/* BroadcastMessage functions shares a message with other peers.
+   The algorithm isn't finalized yet and it's very innefficient.*/
 func BroadcastMessage(class int, data []byte) {
 	toSend := Message{Id: class, Data: data}
 	iter := nodeDatabase.NewIterator(nil, nil)

@@ -91,7 +91,8 @@ func getAddr(w http.ResponseWriter, r *http.Request) {
 		log.Error(err)
 		return
 	}
-
+	
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write(value)
 }
 

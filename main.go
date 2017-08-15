@@ -84,7 +84,7 @@ func main() {
 			Aliases: []string{"gb", "fb"},
 			Action: func(c *cli.Context) error {
 				bc := blockchain.OpenBlockchain()
-				bal, _ := bc.GetBalance(c.Args().Get(0))
+				bal, _, _ := bc.GetBalance(c.Args().Get(0))
 				log.Info("Balance for given wallet is ", bal)
 
 				return nil
@@ -100,7 +100,7 @@ func main() {
 				senderWallet := wallet.ImportWallet(walletPath)
 
 				bc := blockchain.OpenBlockchain()
-				bal, nonce := bc.GetBalance(senderWallet.GetWallet())
+				bal, nonce, _ := bc.GetBalance(senderWallet.GetWallet())
 
 				senderWallet.Balance = bal
 				senderWallet.Nonce = nonce
@@ -133,7 +133,7 @@ func main() {
 					log.Fatal(err)
 				}
 
-				log.Fatal(cont.SelectCDNNodes(ownerWallet))
+				cont.SelectCDNNodes(ownerWallet)
 
 				return nil
 			},

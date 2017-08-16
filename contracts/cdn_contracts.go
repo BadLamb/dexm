@@ -172,6 +172,8 @@ type proofOfDownload struct {
 }
 
 func cdnServe(w http.ResponseWriter, r *http.Request) {
+
+	// Parse the request
 	blockIndex, err := strconv.Atoi(r.URL.Query().Get("block"))
 	if err != nil {
 		return
@@ -203,6 +205,12 @@ func cdnServe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Send the block to the client
 	blockSize := 1024
-	w.Write(decompressed[blockIndex*blockSize : blockIndex*(blockSize+1)])
+	index0 := blockIndex * blockSize
+	index1 := blockIndex * (blockSize + 1)
+	if index1 >= len(decompressed) {
+		index1 := len(decompressed) - 1
+	}
+	w.Write(decompressed[index0:index1])
 }

@@ -209,6 +209,10 @@ func cdnServe(w http.ResponseWriter, r *http.Request) {
 	blockSize := 1024
 	index0 := blockIndex * blockSize
 	index1 := blockIndex * (blockSize + 1)
+	if index0 >= len(decompressed) {
+		w.Write([]byte("Invalid block index"))
+		return
+	}
 	if index1 >= len(decompressed) {
 		index1 := len(decompressed) - 1
 	}

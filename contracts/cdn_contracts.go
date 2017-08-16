@@ -1,11 +1,14 @@
 package contracts
 
 import (
+	"crypto/sha256"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/badlamb/dexm/wallet"
@@ -63,7 +66,7 @@ func (c Contract) SelectCDNNodes(w *wallet.Wallet) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Compression settings, this way bundles are smaller
 	params := enc.NewBrotliParams()
 	params.SetQuality(4)
@@ -163,7 +166,22 @@ func StartCDNServer() {
 	http.ListenAndServe(":8080", nil)
 }
 
+type proofOfDownload struct {
+	indexes [2]int
+	hash    string
+}
+
 func cdnServe(w http.ResponseWriter, r *http.Request) {
+	blockIndex, err := strconv.Atoi(r.URL.Query().Get("block"))
+	if err != nil {
+		return
+	}
+	var proof proofOfDownload
+	err = json.Unmarshal([]byte(r.URL.Query().Get("proof")), &proof)
+	if err != nil {
+		return
+	}
+
 	filename := strings.TrimLeft(r.URL.Path, "/")
 
 	// TODO Fix this, replace with actual owner
@@ -175,5 +193,16 @@ func cdnServe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	decompressed, _ := dec.DecompressBuffer(compressed, make([]byte, 0))
-	w.Write(decompressed)
+
+	// check proof validity
+	if blockIndex != 0 {
+		hash := sha256.Sum256(decompressed[proof.indexes[0]:proof.indexes[1]])
+		if string(hash[:32]) != proof.hash {
+			w.Write([]byte("Invalid Proof"))
+			return
+		}
+	}
+
+	blockSize := 1024
+	w.Write(decompressed[blockIndex*blockSize : blockIndex*(blockSize+1)])
 }

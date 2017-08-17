@@ -53,7 +53,7 @@ func VerifyContract(c *Contract) (bool, error) {
 func (c *Contract) AppendKeyAndSign(w *wallet.Wallet) {
 	x509Encoded, err := x509.MarshalPKIXPublicKey(&w.PrivKey.PublicKey)
 	if err != nil {
-		log.Fatal("AppendKeyAndSign " + err.Error())
+		log.Fatal(err.Error())
 	}
 
 	c.PubKey = x509Encoded

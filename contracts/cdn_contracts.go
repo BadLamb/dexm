@@ -3,12 +3,12 @@ package contracts
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"encoding/hex"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/badlamb/dexm/wallet"
@@ -167,39 +167,63 @@ func StartCDNServer() {
 }
 
 type proofOfDownload struct {
-	indexes [2]int
-	hash    string
+	Indexes [2]int `json:"indexes"`
+	Hash    string `json:"hash"`
+}
+
+type wrapper struct{
+	Block int  `json:"block"`
+	Proof string `json:"proof"`
 }
 
 func cdnServe(w http.ResponseWriter, r *http.Request) {
-
 	// Parse the request
-	blockIndex, err := strconv.Atoi(r.URL.Query().Get("block"))
-	if err != nil {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil{
 		return
 	}
-	var proof proofOfDownload
-	err = json.Unmarshal([]byte(r.URL.Query().Get("proof")), &proof)
-	if err != nil {
+
+	log.Info(string(body))
+
+	var envelope wrapper
+	err = json.Unmarshal(body, &envelope)
+	if err != nil{
+		log.Info(err)
 		return
 	}
 
 	filename := strings.TrimLeft(r.URL.Path, "/")
 
 	// TODO Fix this, replace with actual owner
-	cdnPath := FindCDNFilePath(filename, "DexmProofOfBurn")
+	cdnPath := FindCDNFilePath(filename, "Dexm37m4CTcDdDh6g471prXpv7tQzauN2eb3c5de")
 
 	compressed, err := ioutil.ReadFile(cdnPath)
 	if err != nil {
+		log.Error(err)
 		return
 	}
+
+	// Let browsers make the request cross site
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	decompressed, _ := dec.DecompressBuffer(compressed, make([]byte, 0))
 
 	// check proof validity
-	if blockIndex != 0 {
-		hash := sha256.Sum256(decompressed[proof.indexes[0]:proof.indexes[1]])
-		if string(hash[:32]) != proof.hash {
+	if envelope.Block != 0 {
+		var proof proofOfDownload
+		err = json.Unmarshal([]byte(envelope.Proof), &proof)
+		if err != nil {
+			log.Info(err)
+			return
+		}
+
+		if proof.Indexes[0] >= len(decompressed) || proof.Indexes[1] >= len(decompressed) {
+			w.Write([]byte("Invalid indexes"))
+			return
+		}
+
+		hash := sha256.Sum256(decompressed[proof.Indexes[0]:proof.Indexes[1]])
+		if hex.EncodeToString(hash[:]) != proof.Hash {
 			w.Write([]byte("Invalid Proof"))
 			return
 		}
@@ -207,14 +231,16 @@ func cdnServe(w http.ResponseWriter, r *http.Request) {
 
 	// Send the block to the client
 	blockSize := 1024
-	index0 := blockIndex * blockSize
-	index1 := blockIndex * (blockSize + 1)
+	index0 := envelope.Block * blockSize
+	index1 := (envelope.Block + 1) * blockSize
 	if index0 >= len(decompressed) {
 		w.Write([]byte("Invalid block index"))
 		return
 	}
 	if index1 >= len(decompressed) {
-		index1 := len(decompressed) - 1
+		index1 = len(decompressed) - 1
 	}
+	log.Info(index0, index1)
 	w.Write(decompressed[index0:index1])
 }
+	

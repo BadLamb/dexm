@@ -53,6 +53,7 @@ func (bc *BlockChain) GetBalance(wallet string) (int, int, int) {
 	return curr.Balance, curr.Nonce, curr.Nonce
 }
 
+// Stores amount, nonce, and burn for a given wallet 
 func (bc *BlockChain) SetBalance(wallet string, amount, nonce, burn int) error {
 	c := WalletInfo{
 		Balance: amount,
@@ -67,6 +68,7 @@ func (bc *BlockChain) SetBalance(wallet string, amount, nonce, burn int) error {
 	return bc.Balances.Put([]byte(wallet), data, nil)
 }
 
+// Verify if a transaction has a valid signature
 func VerifyTransactionSignature(transaction wallet.Transaction) (bool, error) {
 	r, s := transaction.SenderSig[0], transaction.SenderSig[1]
 	transaction.SenderSig = [2][]byte{}
@@ -88,6 +90,7 @@ func VerifyTransactionSignature(transaction wallet.Transaction) (bool, error) {
 	return ecdsa.Verify(senderPub, marshaled, rb, sb), nil
 }
 
+// Takes in a block and then updates all balances
 func (bc *BlockChain) ProcessBlock(curr *Block) error {
 	var totalGas = 0
 
@@ -146,6 +149,8 @@ func (bc *BlockChain) ProcessBlock(curr *Block) error {
 	return nil
 }
 
+// Returns random wallets based on their burn. 
+// TODO Add PoB decay
 func (bc *BlockChain) GetPoBWallets(nodes int) []string{
 	iter := bc.Balances.NewIterator(nil, nil)
 	balances := make(map[int]string)

@@ -6,6 +6,7 @@ import(
     "github.com/bitgoin/lyra2rev2"
 )
 
+// First version of the PoW hash. Uses lyra2rev2
 func SumDexmHashVOne(nonce, block []byte) (*big.Int, error){
     toHash := append(nonce, block...)
 

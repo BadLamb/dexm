@@ -39,6 +39,7 @@ type BlockChain struct {
 	Balances *leveldb.DB
 }
 
+// Generates a new blockchain with only the genesis block
 func NewBlockChain() *BlockChain {
 	bc := OpenBlockchain()
 	// generate Genesis Block
@@ -57,6 +58,7 @@ func NewBlockChain() *BlockChain {
 	return bc
 }
 
+// Opens the databases used internally by Dexm
 func OpenBlockchain() *BlockChain {
 	db, err := leveldb.OpenFile("blockchain.db", nil)
 	if err != nil {
@@ -70,6 +72,7 @@ func OpenBlockchain() *BlockChain {
 	}
 }
 
+// Returns how many blocks are in the chain
 func (bc *BlockChain) GetLen() int64 {
 	size, err := bc.DB.SizeOf(nil)
 	if err != nil {
@@ -80,6 +83,7 @@ func (bc *BlockChain) GetLen() int64 {
 	return size.Sum() + 1 
 }
 
+// Returns a block at index i
 func (bc *BlockChain) GetBlock(index int64) (*Block, error) {
 	data, err := bc.DB.Get([]byte(string(index)), nil)
 	if err != nil {
@@ -92,6 +96,8 @@ func (bc *BlockChain) GetBlock(index int64) (*Block, error) {
 	return &newBlock, nil
 }
 
+// Turns transactions and contracts into a block without the proof of work.
+// Then stores it in the DB TODO Only PoW blocks shold be on the DB
 func (bc *BlockChain) NewBlock(transactionList, contractList []byte) {
 	lastIndex := bc.GetLen() - 1
 	latestBlock, err := bc.GetBlock(lastIndex)
@@ -116,6 +122,7 @@ type PoWBlock struct{
 	MinedBlock *Block
 }
 
+// Verify that a PoW block is valid
 func (bc *BlockChain) VerifyNewBlockValidity(minedBlock *PoWBlock) (bool, error) {
 	latestIndex := bc.GetLen() - 1
 	latestBlock, err := bc.GetBlock(latestIndex)
@@ -148,6 +155,7 @@ func (bc *BlockChain) VerifyNewBlockValidity(minedBlock *PoWBlock) (bool, error)
 	return true, nil
 }
 
+// Turns a block into a []byte
 func (b *Block) GetBytes() []byte {
 	// copy the block without the Hash field
 	var bCopy Block
@@ -163,10 +171,9 @@ func (b *Block) GetBytes() []byte {
 	return encoded
 }
 
-/*
-This function assumes the block is valid.
-TODO Implement adjustments based on Shelling results and hashing power
-*/
+// Returns difficulty for a given block
+// This function assumes the block is valid.
+// TODO Implement adjustments based on Shelling results and hashing power
 func (b *Block) GetDifficulty(bc *BlockChain) *big.Int {
 	if b.Index == 0 {
 		genesis := new(big.Int)
@@ -182,12 +189,11 @@ func (b *Block) GetDifficulty(bc *BlockChain) *big.Int {
 	return prevBlock.GetDifficulty(bc)
 }
 
-/*
-Each block has a fixed reward in USD. usdPrice is found by
-uding schelling. We do this to keep the price of the coin somewhat stable.
-There is one huge flaw however: you will get a good hash about 2**256/difficulty
-times, thus with a higher difficulty the reward should grow.
-*/
+// Finds reward for a usd price
+// Each block has a fixed reward in USD. usdPrice is found by
+// using schelling. We do this to keep the price of the coin somewhat stable.
+// There is one huge flaw however: you will get a good hash about 2**256/difficulty
+// times, thus with a higher difficulty the reward should grow.
 func GetReward(usdPrice int) int {
 	return USD_REWARD / usdPrice
 }

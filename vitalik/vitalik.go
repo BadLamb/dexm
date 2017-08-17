@@ -4,8 +4,16 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"os"
 )
+
+func main() {
+	err := SplitFile("storedFile", 1024*1024, 30, 10)
+	if err != nil {
+		fmt.Print(err)
+	}
+}
 
 func SplitFile(filePath string, chunkSizeBytes int, totChunk int, minChunk int) error {
 	/*
@@ -17,25 +25,74 @@ func SplitFile(filePath string, chunkSizeBytes int, totChunk int, minChunk int) 
 							of redundancy
 			minChunk		minimal number of chunks needed in order to rebuild the file
 	*/
-	initialFile, err := ioutil.ReadFile(filePath)
+	initialFile, err := os.Open(filePath)
 	if err != nil {
 		return err
 	}
-	fileSize := len(initialFile)
+	defer initialFile.Close()
+
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return err
+	}
 
 	// check for bad arguments
-	if chunkSizeBytes*totChunk < fileSize {
+	if int64(chunkSizeBytes*totChunk) < fileInfo.Size() {
 		return errors.New("Total size of chunks is smaller than the file")
 	} else if minChunk > totChunk {
 		return errors.New("minChunk must be smaller than totChunk")
 	}
-	// TODO protocol for splitting the file
+
+	chunkWriters := make([]*os.File, totChunk)
+
+	// Open one file for each chunk
+	for i := 0; i < totChunk; i++ {
+		fileName := fmt.Sprintf("Chunk%d", i)
+		chunkWriters[i], err = os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0222) // Open files as write only
+		if err != nil {
+			return err
+		}
+		defer chunkWriters[i].Close()
+	}
+
+	buff := make([]byte, minChunk)
+	workCounter := 0
+	for term := 1; term != 0; {
+		n, err := initialFile.Read(buff)
+		if err != nil {
+			if err == io.EOF {
+				term = 0    // end loop next time
+				if n == 0 { // It means that the file size is a multiple of min Chunk.
+					return nil // Terminates the function. Everything has been done
+				}
+			} else {
+				return err
+			}
+		}
+		// A useful Counter of the work done
+		workCounter += 1
+		if workCounter%(100000) == 0 { //Write a message every MB
+			fmt.Printf("%d bytes read\n", workCounter*minChunk)
+		}
+
+		xCoords := make([]byte, n)
+		for i := 0; i < n; i++ {
+			xCoords[i] = byte(i)
+		}
+		yCoords := buff[:n]
+		points, err := FiniteFieldLagrangeInterpolation(xCoords, yCoords, totChunk)
+		if err != nil {
+			return err
+		}
+		for i := 0; i < totChunk; i++ {
+			_, err = chunkWriters[i].Write(points[i : i+1])
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	return nil
-}
-
-func main() {
-	//SplitFile("storedFile", 1024, 30, 10)
 }
 
 func FiniteFieldLagrangeInterpolation(xCoords []byte, yCoords []byte, pointNumber int) ([]byte, error) {
@@ -63,14 +120,23 @@ func FiniteFieldLagrangeInterpolation(xCoords []byte, yCoords []byte, pointNumbe
 	if degree != len(yCoords) {
 		return nil, errors.New("xCoords and yCoords must have the same length")
 	}
+	// Check for repeated elements, that would screw up Lagrange interpolation
+	for i := 0; i < degree; i++ {
+		for j := 0; j < degree; j++ {
+			if i != j && xCoords[i] == xCoords[j] {
+				return nil, errors.New("All the x coordinates must be different")
+			}
+		}
+	}
 
 	var numerator byte
 	var denominator byte
 	var y byte
 	var div byte
 
-	result := make([]byte, degree)
+	result := make([]byte, pointNumber)
 
+	// Do the Math
 	for x := 0; x < pointNumber; x++ {
 		y = 0
 		for i := 0; i < degree; i++ {

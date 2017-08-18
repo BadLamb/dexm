@@ -43,9 +43,8 @@ func SplitFile(filePath string, chunkSizeBytes int, totChunk int, minChunk int) 
 		return errors.New("minChunk must be smaller than totChunk")
 	}
 
-	chunkWriters := make([]*os.File, totChunk)
-
 	// Open one file for each chunk
+	chunkWriters := make([]*os.File, totChunk)
 	for i := 0; i < totChunk; i++ {
 		fileName := fmt.Sprintf("Chunk%d", i)
 		chunkWriters[i], err = os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0222) // Open files as write only
@@ -55,8 +54,17 @@ func SplitFile(filePath string, chunkSizeBytes int, totChunk int, minChunk int) 
 		defer chunkWriters[i].Close()
 	}
 
-	buff := make([]byte, minChunk)
+	// Create buffers and counters
+	bytesToWrite := 10
+	chunkBuffers := make([][]byte, totChunk)
+	for i := range chunkBuffers {
+		chunkBuffers[i] = make([]byte, bytesToWrite)
+	}
+	buff := make([]byte, minChunk*bytesToWrite)
 	workCounter := 0
+	var bytesWrote int
+
+	// Main Loop
 	for term := 1; term != 0; {
 		n, err := initialFile.Read(buff)
 		if err != nil {
@@ -71,27 +79,46 @@ func SplitFile(filePath string, chunkSizeBytes int, totChunk int, minChunk int) 
 		}
 		// A useful Counter of the work done
 		workCounter += 1
-		if workCounter%(100000) == 0 { //Write a message every MB
-			fmt.Printf("%d bytes read\n", workCounter*minChunk)
+		if workCounter%(10000) == 0 { //Display a message with the progress
+			fmt.Printf("%d bytes read\n", workCounter*minChunk*bytesToWrite)
 		}
 
-		xCoords := make([]byte, n)
-		for i := 0; i < n; i++ {
-			xCoords[i] = byte(i)
+		for i := 0; i*minChunk < n; i++ {
+			pointNumber := minChunk // Number of points to interpolate
+			if (i+1)*minChunk >= n {
+				pointNumber = n % minChunk
+				bytesWrote = i + 1
+			}
+			//Fill the x with natural numbers
+			xCoords := make([]byte, pointNumber)
+			for j := range xCoords {
+				xCoords[j] = byte(j)
+			}
+			//Fill the y with interpolated points
+			yCoords := buff[minChunk*i : minChunk*i+pointNumber]
+			points, err := FiniteFieldLagrangeInterpolation(xCoords, yCoords, totChunk)
+			if err != nil {
+				return err
+			}
+			//Write into the buffers
+			for j := 0; j < totChunk; j++ {
+				chunkBuffers[j][i] = points[j]
+			}
 		}
-		yCoords := buff[:n]
-		points, err := FiniteFieldLagrangeInterpolation(xCoords, yCoords, totChunk)
-		if err != nil {
-			return err
-		}
-		for i := 0; i < totChunk; i++ {
-			_, err = chunkWriters[i].Write(points[i : i+1])
+		// Write into the files
+		for j := range chunkBuffers {
+			_, err = chunkWriters[j].Write(chunkBuffers[j][:bytesWrote])
 			if err != nil {
 				return err
 			}
 		}
 	}
 
+	return nil
+}
+
+func RetrieveFile(pathToChunks []string, chunkNumbers []int, fileSize int64) error {
+	//TODO
 	return nil
 }
 

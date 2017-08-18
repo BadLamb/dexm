@@ -38,16 +38,16 @@ func SplitFile(filePath string, chunkSizeBytes int, totChunk int, minChunk int) 
 
 	// check for bad arguments
 	if int64(chunkSizeBytes*totChunk) < fileInfo.Size() {
-		return errors.New("Total size of chunks is smaller than the file")
+		return fmt.Errorf("SplitFile: Total size of chunks is smaller than the file")
 	} else if minChunk > totChunk {
-		return errors.New("minChunk must be smaller than totChunk")
+		return fmt.Errorf("SplitFile: minChunk must be smaller than totChunk")
 	}
 
 	// Open one file for each chunk
 	chunkWriters := make([]*os.File, totChunk)
 	for i := 0; i < totChunk; i++ {
 		fileName := fmt.Sprintf("Chunk%d", i)
-		chunkWriters[i], err = os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0222) // Open files as write only
+		chunkWriters[i], err = os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0660) // Open files as write only
 		if err != nil {
 			return err
 		}
@@ -79,16 +79,16 @@ func SplitFile(filePath string, chunkSizeBytes int, totChunk int, minChunk int) 
 		}
 		// A useful Counter of the work done
 		workCounter += 1
-		if workCounter%(10000) == 0 { //Display a message with the progress
+		if workCounter%(1000) == 0 { //Display a message with the progress
 			fmt.Printf("%d bytes read\n", workCounter*minChunk*bytesToWrite)
 		}
 
 		for i := 0; i*minChunk < n; i++ {
 			pointNumber := minChunk // Number of points to interpolate
-			if (i+1)*minChunk >= n {
+			if (i+1)*minChunk > n {
 				pointNumber = n % minChunk
-				bytesWrote = i + 1
 			}
+			bytesWrote = i + 1
 			//Fill the x with natural numbers
 			xCoords := make([]byte, pointNumber)
 			for j := range xCoords {
@@ -117,8 +117,52 @@ func SplitFile(filePath string, chunkSizeBytes int, totChunk int, minChunk int) 
 	return nil
 }
 
-func RetrieveFile(pathToChunks []string, chunkNumbers []int, fileSize int64) error {
-	//TODO
+func RetrieveFile(pathToChunks []string, chunkIds []int, fileSize int64) error {
+	/*
+	   Rebuilds the file, given a number of chunks generated with the function SplitFile.
+
+	   pathToChunks    list containing the paths of the minimun number of chunks necessary.
+	   chunkIds        the id of every chunk
+	   fileSize        the size of the file to rebuild.
+	*/
+
+	// Check for bad arguments
+	minChunk := len(pathToChunks)
+	if minChunk != len(chunkIds) {
+		return fmt.Errorf("RetrieveFile: %d paths given, but %d ids given. They must be the same number.",
+			minChunk, len(chunkIds))
+	}
+	chunkInfo, err := os.Stat(pathToChunks[0])
+	if err != nil {
+		return err
+	}
+	chunkSize := chunkInfo.Size()
+	for _, path := range pathToChunks {
+		chunkInfo, err := os.Stat(path)
+		if err != nil {
+			return err
+		}
+		if chunkSize != chunkInfo.Size() {
+			return fmt.Errorf("RetrieveFile: All chunk files must be the same size")
+		}
+	}
+	if int64(minChunk)*chunkSize < fileSize {
+		return fmt.Errorf("RetrieveFile: total size of chunks is smaller than fileSize.")
+	}
+
+	// Open Chunks
+	chunkReader := make([]*os.File, minChunk)
+	for i := range chunkReader {
+		chunkReader[i], err = os.Open(pathToChunks[i])
+		if err != nil {
+			return err
+		}
+		defer chunkReader[i].Close()
+	}
+
+	// Create RestoredFile
+	restoredFile, err := os.OpenFile("restoredFile", os.O_WRONLY|os.O_CREATE, 0660) // Open file as write only
+	fmt.Println(restoredFile)
 	return nil
 }
 
@@ -145,13 +189,14 @@ func FiniteFieldLagrangeInterpolation(xCoords []byte, yCoords []byte, pointNumbe
 	*/
 	var degree int = len(xCoords)
 	if degree != len(yCoords) {
-		return nil, errors.New("xCoords and yCoords must have the same length")
+		return nil, fmt.Errorf("Lagrange: %d x coords given, but %d y coords. They must be the same number",
+			degree, len(yCoords))
 	}
 	// Check for repeated elements, that would screw up Lagrange interpolation
 	for i := 0; i < degree; i++ {
 		for j := 0; j < degree; j++ {
 			if i != j && xCoords[i] == xCoords[j] {
-				return nil, errors.New("All the x coordinates must be different")
+				return nil, fmt.Errorf("Lagrange: All the x coordinates must be different")
 			}
 		}
 	}

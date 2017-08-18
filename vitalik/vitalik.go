@@ -2,16 +2,22 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
 )
 
 func main() {
-	err := SplitFile("storedFile", 1024*1024, 30, 10)
+	//err := SplitFile("storedFile", 1024*1024, 30, 10)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+	pathToChunks := []string{"Chunk0", "Chunk1", "Chunk2", "Chunk3", "Chunk4",
+		"Chunk5", "Chunk6", "Chunk7", "Chunk8", "Chunk9"}
+	chunkIds := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+	err := RetrieveFile(pathToChunks, chunkIds, 10485765)
 	if err != nil {
-		fmt.Print(err)
+		fmt.Println(err)
 	}
 }
 
@@ -53,16 +59,20 @@ func SplitFile(filePath string, chunkSizeBytes int, totChunk int, minChunk int) 
 		}
 		defer chunkWriters[i].Close()
 	}
-
 	// Create buffers and counters
-	bytesToWrite := 10
+	bytesToWrite := 100
 	chunkBuffers := make([][]byte, totChunk)
 	for i := range chunkBuffers {
 		chunkBuffers[i] = make([]byte, bytesToWrite)
 	}
 	buff := make([]byte, minChunk*bytesToWrite)
 	workCounter := 0
-	var bytesWrote int
+	bytesWrote := 0
+	//Fill the x with natural numbers
+	xCoords := make([]byte, minChunk)
+	for i := range xCoords {
+		xCoords[i] = byte(i)
+	}
 
 	// Main Loop
 	for term := 1; term != 0; {
@@ -79,7 +89,7 @@ func SplitFile(filePath string, chunkSizeBytes int, totChunk int, minChunk int) 
 		}
 		// A useful Counter of the work done
 		workCounter += 1
-		if workCounter%(1000) == 0 { //Display a message with the progress
+		if workCounter%(100000/bytesToWrite) == 0 { //Display a message with the progress
 			fmt.Printf("%d bytes read\n", workCounter*minChunk*bytesToWrite)
 		}
 
@@ -89,13 +99,11 @@ func SplitFile(filePath string, chunkSizeBytes int, totChunk int, minChunk int) 
 				pointNumber = n % minChunk
 			}
 			bytesWrote = i + 1
-			//Fill the x with natural numbers
-			xCoords := make([]byte, pointNumber)
-			for j := range xCoords {
-				xCoords[j] = byte(j)
-			}
-			//Fill the y with interpolated points
+			// Adjust x Coords
+			xCoords = xCoords[:pointNumber]
+			//Fill the y with the bytes read
 			yCoords := buff[minChunk*i : minChunk*i+pointNumber]
+			// Interpolate
 			points, err := FiniteFieldLagrangeInterpolation(xCoords, yCoords, totChunk)
 			if err != nil {
 				return err
@@ -117,7 +125,7 @@ func SplitFile(filePath string, chunkSizeBytes int, totChunk int, minChunk int) 
 	return nil
 }
 
-func RetrieveFile(pathToChunks []string, chunkIds []int, fileSize int64) error {
+func RetrieveFile(pathToChunks []string, chunkIds []byte, fileSize int64) error {
 	/*
 	   Rebuilds the file, given a number of chunks generated with the function SplitFile.
 
@@ -149,7 +157,6 @@ func RetrieveFile(pathToChunks []string, chunkIds []int, fileSize int64) error {
 	if int64(minChunk)*chunkSize < fileSize {
 		return fmt.Errorf("RetrieveFile: total size of chunks is smaller than fileSize.")
 	}
-
 	// Open Chunks
 	chunkReader := make([]*os.File, minChunk)
 	for i := range chunkReader {
@@ -159,10 +166,78 @@ func RetrieveFile(pathToChunks []string, chunkIds []int, fileSize int64) error {
 		}
 		defer chunkReader[i].Close()
 	}
-
 	// Create RestoredFile
 	restoredFile, err := os.OpenFile("restoredFile", os.O_WRONLY|os.O_CREATE, 0660) // Open file as write only
-	fmt.Println(restoredFile)
+	if err != nil {
+		return err
+	}
+	// Create Buffers and Counters
+	bytesToRead := 100
+	chunkBuffers := make([][]byte, minChunk)
+	for i := range chunkBuffers {
+		chunkBuffers[i] = make([]byte, bytesToRead)
+	}
+	buff := make([]byte, minChunk*bytesToRead)
+	workCounter := 0
+	bytesWrote := 0
+
+	// Main Loop
+	for term := 1; term != 0; {
+		var n int
+		for i := range chunkBuffers {
+			n, err = chunkReader[i].Read(chunkBuffers[i])
+		}
+		if err == io.EOF || n != bytesToRead {
+			term = 0    // end loop next time
+			if n == 0 { // This means that chunkSize is a multiple of bytesToRead.
+				return nil //Terminates the funcion. Everything has been done.
+			}
+			if n != bytesToRead {
+				fmt.Println(err, n, term)
+			}
+		} else if err != nil {
+			return err
+		}
+
+		// A useful Counter of the work done
+		workCounter += 1
+		if workCounter%(100000/bytesToRead) == 0 { //Display a message with the progress
+			fmt.Printf("%d bytes written\n", workCounter*minChunk*bytesToRead)
+		}
+
+		for i := 0; i < n; i++ {
+			pointNumber := minChunk // Number of points to interpolate
+			if n != bytesToRead && i == n-1 {
+				pointNumber = int((int64(minChunk) * chunkSize) - fileSize)
+			}
+			bytesWrote = i*minChunk + pointNumber
+			//Fill the x coords with chunk ids
+			xCoords := chunkIds[:pointNumber]
+			//Fill the y coords with the bytes read
+			yCoords := make([]byte, pointNumber)
+			for j := range yCoords {
+				yCoords[j] = chunkBuffers[j][i]
+			}
+			// Interpolate
+			points, err := FiniteFieldLagrangeInterpolation(xCoords, yCoords, pointNumber)
+			if err != nil {
+				return err
+			}
+			//write to the buffer
+			for j := 0; j < pointNumber; j++ {
+				buff[i*minChunk+j] = points[j]
+			}
+		}
+		// Write to the file
+		_, err = restoredFile.Write(buff[:bytesWrote])
+		if n != bytesToRead {
+			fmt.Println(buff[:bytesWrote], term)
+		}
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -245,7 +320,7 @@ func GFMul(a byte, b byte) byte {
 func GFDiv(a byte, b byte) (byte, error) {
 	// Same as FG mul, but performs a division
 	if b == 0 {
-		return 0x00, errors.New("Cannot divide by zero")
+		return 0x00, fmt.Errorf("GFDiv: Tried to do %d/%d. Cannot divide by zero", a, b)
 	}
 	if a == 0 {
 		return 0x00, nil

@@ -30,6 +30,7 @@ type Message struct {
 var nodeDatabase *leveldb.DB
 var bc *blockchain.BlockChain
 
+// Opens the databases needed by many built in tools
 func InitPartialNode() {
 	if isFolder("blockchain.db"){
 		bc = blockchain.OpenBlockchain()
@@ -50,6 +51,7 @@ func isFolder(path string) bool{
 	return true
 }
 
+// Start a full node
 func StartSyncServer() {
 	log.Info("Opening node db..")
 	InitPartialNode()
@@ -65,7 +67,7 @@ func StartSyncServer() {
 	http.ListenAndServe(PORT, nil)
 }
 
-/* getAddr is an http request that returns all known ips */
+// getAddr is an http request that returns all known ips
 func getAddr(w http.ResponseWriter, r *http.Request) {
 	iter := nodeDatabase.NewIterator(nil, nil)
 
@@ -96,7 +98,7 @@ func getAddr(w http.ResponseWriter, r *http.Request) {
 	w.Write(value)
 }
 
-/* getBlock returns a block at index ?index */
+// getBlock returns a block at index ?index
 func getBlock(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("index") != "" {
 		index, err := strconv.Atoi(r.FormValue("index"))
@@ -115,13 +117,12 @@ func getBlock(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-/* Returns how many blocks the client knows */
+// Returns how many blocks the client knows
 func getMaxBlock(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(strconv.Itoa(int(bc.GetLen()))))
 }
 
-/* getMessage recives messages from other known peers about
-   events(transactions, blocks etc)*/
+// getMessage recives messages from other known peers about events(transactions, blocks etc)
 func getMessage(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil{
@@ -174,8 +175,8 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-/* BroadcastMessage functions shares a message with other peers.
-   The algorithm isn't finalized yet and it's very innefficient.*/
+// BroadcastMessage functions shares a message with other peers.
+// The algorithm isn't finalized yet and it's very innefficient.
 func BroadcastMessage(class int, data []byte) {
 	toSend := Message{Id: class, Data: data}
 	iter := nodeDatabase.NewIterator(nil, nil)
@@ -204,7 +205,7 @@ func BroadcastMessage(class int, data []byte) {
 
 }
 
-/* Insert IP and timestamp into DB */
+// Insert IP and timestamp into DB
 func updateTimestamp(ip string) {
 	// TODO fix local ips properly
 	ip, _, err := net.SplitHostPort(ip)

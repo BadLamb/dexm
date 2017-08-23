@@ -1,13 +1,13 @@
 package protocol
 
 import (
-	"encoding/json"
 	"encoding/binary"
 	"net"
 	"net/http"
 	"strconv"
 	"time"
 
+	"gopkg.in/mgo.v2/bson"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -16,8 +16,12 @@ const(
 	EXPIRATION_PERIOD = 60
 )
 
+// Connects to each known peer and pings it for more peers.
 func findPeers() {
 	iter := nodeDatabase.NewIterator(nil, nil)
+
+	// Golang's default http.Client has no timeout. This could
+	// lead to the client getting stuck waiting on one peer.
 	netTransport := &http.Transport{
 		Dial: (&net.Dialer{
 			Timeout: 5 * time.Second,
@@ -30,7 +34,7 @@ func findPeers() {
 	}
 	
 	for iter.Next() {
-		/* TODO clean up given IP and avoid getting tricked into ddosing a server */
+		// TODO clean up given IP and avoid getting tricked into ddosing a server
 		ip := string(iter.Key())
 
 		data, err := makeRequest("http://"+ip+PORT+"/getaddr", netClient)
@@ -41,9 +45,7 @@ func findPeers() {
 
 		ips := make(map[string][]byte)
 
-		log.Info(string(data))
-
-		json.Unmarshal(data, &ips)
+		bson.Unmarshal(data, &ips)
 
 		for k, v := range ips {
 			e := net.ParseIP(k)
@@ -72,8 +74,6 @@ func findPeers() {
 
 				continue
 			}
-
-			// TODO Timestamp logic
 		}
 	}
 
@@ -85,6 +85,7 @@ func AutoIPCleanup(){
 		iter := nodeDatabase.NewIterator(nil, nil)
 
 		for iter.Next() {
+			// key is IP and value is a little endian timestamp
 			stamp := int64(binary.LittleEndian.Uint64(iter.Value()))
 
 			if stamp + EXPIRATION_PERIOD < time.Now().Unix(){

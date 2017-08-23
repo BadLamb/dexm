@@ -19,6 +19,8 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+// Creates a contract for all files passed to files.
+//
 func CreateCDNContract(files []string, maxCacheNodes uint16, w *wallet.Wallet) (Contract, error) {
 	hashes := make(map[string][32]byte)
 
@@ -108,6 +110,7 @@ func (c Contract) SelectCDNNodes(w *wallet.Wallet) error {
 	return nil
 }
 
+// Takes a bson encoded Contract with a CDNFileBundle as Definition and stores it
 func ProcessCDNBundle(data []byte) error {
 	var decoded Contract
 	err := bson.Unmarshal(data, &decoded)
@@ -130,6 +133,8 @@ func ProcessCDNBundle(data []byte) error {
 	return nil
 }
 
+// Returns a filepath for a wallet and a filename. Very fragile because
+// bad escaping could lead to file traversal vulnerabilties.
 func FindCDNFilePath(filename, ownerWallet string) string {
 	archivePath := "~/.dexmarchive"
 
@@ -157,8 +162,8 @@ func FindCDNFilePath(filename, ownerWallet string) string {
 
 	// This part is very fragile, if the path is not properly escaped then it
 	// could lead to a path traversal vulnerabilty. OWASP advises urlencoding
-	// paths to avoid .. and ~. ownerWallet is safe because of base58.
-	return filepath.Join(archivePath, ownerWallet+url.QueryEscape(filename))
+	// paths to avoid .. and ~.
+	return filepath.Join(archivePath, url.QueryEscape(ownerWallet + filename))
 }
 
 func StartCDNServer() {
@@ -176,6 +181,7 @@ type wrapper struct{
 	Proof string `json:"proof"`
 }
 
+// For each request look up the file, decompress it and serve it
 func cdnServe(w http.ResponseWriter, r *http.Request) {
 	// Parse the request
 	body, err := ioutil.ReadAll(r.Body)

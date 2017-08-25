@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/badlamb/dexm/wallet"
 	"github.com/minio/blake2b-simd"
 	log "github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -94,6 +95,37 @@ func (bc *BlockChain) GetBlock(index int64) (*Block, error) {
 	bson.Unmarshal(data, &newBlock)
 
 	return &newBlock, nil
+}
+
+type SegwitTransaction struct{
+	Sender    string `bson:"s"`
+	Recipient string `bson:"r"`
+
+	Amount      int       `bson:"a"`
+	Gas         int       `bson:"g"`
+	SenderNonce int       `bson:"n"`
+	Timestamp   int64     `bson:"t"`
+}
+
+// Function that generates a Segwit list of transactions.
+func NewTransactionList(transactions []wallet.Transaction) ([]byte, error){
+	var reducedTransactions []SegwitTransaction
+
+	for _, v := range transactions{
+		fixedTransaction := SegwitTransaction{
+			Sender : wallet.BytesToAddress(v.Sender),
+			Recipient : v.Recipient,
+
+			Amount : v.Amount,
+			Gas : v.Gas,
+			SenderNonce : v.SenderNonce,
+			Timestamp : v.Timestamp,
+		}
+
+		reducedTransactions = append(reducedTransactions, fixedTransaction)
+	}
+
+	return bson.Marshal(reducedTransactions)
 }
 
 // Turns transactions and contracts into a block without the proof of work.

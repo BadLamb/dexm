@@ -108,11 +108,11 @@ func BytesToAddress(data []byte) string {
 	h := ripemd160.New()
 	h.Write(hash[:])
 
-	sum := crc32.ChecksumIEEE(h.Sum(nil))
+	sum := crc32.ChecksumIEEE(hash[:])
 
 	wal := fmt.Sprintf("Dexm%s%x", Base58Encoding(h.Sum(nil)), sum)
 
-	if wal == "DexmmvzDy9dUDpRYbfUn2aHsEjZTBYdbedcaf9b" {
+	if wal == "Dexm2Rb2gmuR7ZwwUn1xD9vBdPC44tuM1f45b145" {
 		return "DexmProofOfBurn"
 	}
 

@@ -1,4 +1,4 @@
-## Deus Ex Machina ![build status](https://circleci.com/gh/BadLamb/dexm.png?circle-token=897cb050f72c9b0b2833be16146c447fde345617)[![Join the chat at freenode:dexm](https://img.shields.io/badge/irc-freenode:%20%23dexm-blue.svg)](http://webchat.freenode.net/?channels=%23dexm)
+## Deus Ex Machina ![build status](https://circleci.com/gh/BadLamb/dexm.png?circle-token=897cb050f72c9b0b2833be16146c447fde345617)  [![Join the chat at freenode:dexm](https://img.shields.io/badge/irc-freenode:%20%23dexm-blue.svg)](http://webchat.freenode.net/?channels=%23dexm)
 #### The Blockchain datacenter
 DexM is a cryptocurrency that allows people to host static and dynamic websites in a distributed and censorship free way on the public
 internet.

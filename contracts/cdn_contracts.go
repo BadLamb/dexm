@@ -148,7 +148,8 @@ func FindCDNFilePath(filename, ownerWallet string) string {
 
 	// Check if archivePath exsists, if it doesn't create said folder
 	if !filepath.IsAbs(archivePath) {
-		log.Fatal(archivePath + " is not an absolute filepath")
+		log.Fatal(archivePath + " is not an absolute filepath\n" + 
+		"You should change the DEXMARCHIVEPATH envoirement variable to an absolute path.")
 	}
 	r, err := os.Stat(archivePath)
 

@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 	"path/filepath"
+	"regexp"
 
 	"github.com/badlamb/dexm/blockchain"
 	"github.com/badlamb/dexm/sync"
@@ -135,6 +136,32 @@ func main() {
 
 				cont.SelectCDNNodes(ownerWallet)
 
+				return nil
+			},
+		},
+		{
+			Name:    "makevanitywallet",
+			Usage:   "mvw [wallet] [regex]",
+			Aliases: []string{"mvw", "mv"},
+			Action: func(c *cli.Context) error {
+				log.Info("Dexm uses Base58 encoding, only chars allowed are 123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
+				regex, err := regexp.Compile(c.Args().Get(1))
+
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+
+				for {
+					wal := wallet.GenerateWallet()
+					wallString := wal.GetWallet()
+
+					if regex.MatchString(wallString) {
+						log.Info("Found wallet: ", wallString)
+						wal.ExportWallet(c.Args().Get(0))
+						return nil
+					}
+				}
 				return nil
 			},
 		},

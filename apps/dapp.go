@@ -1,7 +1,7 @@
 package dapp
 
 /*
-#cgo LDFLAGS: -lseccomp
+#cgo LDFLAGS: -lseccomp -lart
 #include "sandbox.h"
 */
 import "C"
@@ -18,7 +18,7 @@ var ipcPages map[int]unsafe.Pointer
 /* 
 This function starts a sandboxed app with a shared memory page.
 It is done by forking, sandboxing and execve()ing the current process.
-Takes the filepath as a param and returns the pid and an error.append
+Takes the filepath as a param and returns the pid and an error.
 */
 func StartDApp(file string) (int, error) {
 	if ipcPages == nil {

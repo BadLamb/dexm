@@ -2,7 +2,8 @@
 #include <unistd.h>   /* fork, exec */
 #include <sys/mman.h> /* mmap */
 #include <sys/prctl.h>/* prctl */
-
+#include <mqueue.h>   /* mq_open etc*/
+#include <fcntl.h>    /* O_* constants */
 //TODO: Enable CGroups for usage limitations
 
 void seccomp_filtered_proc() {
@@ -15,29 +16,26 @@ void seccomp_filtered_proc() {
     scmp_filter_ctx ctx;
     ctx = seccomp_init(SCMP_ACT_KILL);
 
-    // Allow mmap, exit, sigreturn syscalls
+    /* Allow as few syscalls as we can. mq_* is needed for IPC with
+     * the Golang process
+     */
     seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigreturn), 0);
     seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit), 0);
     seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 0);
+    seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mq_send), 0);
+    seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mq_receive), 0);
 
     // Load the seccomp fliter
     seccomp_load(ctx);
 }
 
-void* start_app(char* filepath, size_t shared_mem_size, int* child_pid) {
-    void* shared_mem = mmap(NULL, shared_mem_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, 0, 0);
-    // Check if allocation was successful
-    if(shared_mem == -1) {
-        return 0;
-    }
-
+void start_app(char* filepath) {
     int pid = fork();
-
-    // Child process
-    if(pid == 0){
-        seccomp_filtered_proc(); // Start sandbox
+    
+    // Not a child process
+    if(pid != 0){
+        return;
     }
-
-    (*child_pid) = pid;
-    return shared_mem;
+    
+    mqd_t messageq = mq_open(filepath, O_RDWR | O_CREAT)
 }

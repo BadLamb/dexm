@@ -5,6 +5,7 @@ import(
 )
 
 type SmartContract struct{
+    Id int
     IsWasm bool
     Code []byte
 }
@@ -23,8 +24,3 @@ func NewSmartContract(code []byte, isWasm bool) (SmartContract, error) {
         Code: compressedFile,
     }, nil
 }
-
-// TODO Implement the v8 binding and sandbox
-// This functions executes a smart contract and return the gas that it needed to run
-// func (c SmartContract) Execute() int64{
-// }

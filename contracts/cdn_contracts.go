@@ -1,11 +1,9 @@
 package contracts
 
 import (
-	"crypto/sha256"
-	"encoding/json"
-	"encoding/hex"
+//	"crypto/sha256"
+//	"encoding/hex"
 	"io/ioutil"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -14,8 +12,8 @@ import (
 	"github.com/badlamb/dexm/wallet"
 	"github.com/minio/blake2b-simd"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/kothar/brotli-go.v0/dec"
 	"gopkg.in/kothar/brotli-go.v0/enc"
+	"gopkg.in/kothar/brotli-go.v0/dec"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -125,7 +123,13 @@ func ProcessCDNBundle(data []byte) error {
 	}
 
 	filepath := FindCDNFilePath(bundle.Filename, wallet.BytesToAddress(decoded.PubKey))
-	err = ioutil.WriteFile(filepath, bundle.File, 0644)
+
+	decompressed, err := dec.DecompressBuffer(bundle.File, make([]byte, 0))
+	if err != nil{
+		return err
+	}
+
+	err = ioutil.WriteFile(filepath, decompressed, 0644)
 	if err != nil {
 		return err
 	}
@@ -163,91 +167,6 @@ func FindCDNFilePath(filename, ownerWallet string) string {
 
 	// This part is very fragile, if the path is not properly escaped then it
 	// could lead to a path traversal vulnerabilty. OWASP advises urlencoding
-	// paths to avoid .. and ~.
+	// paths to avoid .. and ~
 	return filepath.Join(archivePath, url.QueryEscape(ownerWallet + filename))
 }
-
-func StartCDNServer() {
-	http.HandleFunc("/", cdnServe)
-	http.ListenAndServe(":8080", nil)
-}
-
-type proofOfDownload struct {
-	Indexes [2]int `json:"indexes"`
-	Hash    string `json:"hash"`
-}
-
-type wrapper struct{
-	Block int  `json:"block"`
-	Proof string `json:"proof"`
-}
-
-// For each request look up the file, decompress it and serve it
-func cdnServe(w http.ResponseWriter, r *http.Request) {
-	// Parse the request
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil{
-		return
-	}
-
-	log.Info(string(body))
-
-	var envelope wrapper
-	err = json.Unmarshal(body, &envelope)
-	if err != nil{
-		log.Info(err)
-		return
-	}
-
-	filename := strings.TrimLeft(r.URL.Path, "/")
-
-	// TODO Fix this, replace with actual owner
-	cdnPath := FindCDNFilePath(filename, "Dexm37m4CTcDdDh6g471prXpv7tQzauN2eb3c5de")
-
-	compressed, err := ioutil.ReadFile(cdnPath)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	// Let browsers make the request cross site
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	decompressed, _ := dec.DecompressBuffer(compressed, make([]byte, 0))
-
-	// check proof validity
-	if envelope.Block != 0 {
-		var proof proofOfDownload
-		err = json.Unmarshal([]byte(envelope.Proof), &proof)
-		if err != nil {
-			log.Info(err)
-			return
-		}
-
-		if proof.Indexes[0] >= len(decompressed) || proof.Indexes[1] >= len(decompressed) {
-			w.Write([]byte("Invalid indexes"))
-			return
-		}
-
-		hash := sha256.Sum256(decompressed[proof.Indexes[0]:proof.Indexes[1]])
-		if hex.EncodeToString(hash[:]) != proof.Hash {
-			w.Write([]byte("Invalid Proof"))
-			return
-		}
-	}
-
-	// Send the block to the client
-	blockSize := 1024
-	index0 := envelope.Block * blockSize
-	index1 := (envelope.Block + 1) * blockSize
-	if index0 >= len(decompressed) {
-		w.Write([]byte("Invalid block index"))
-		return
-	}
-	if index1 >= len(decompressed) {
-		index1 = len(decompressed) - 1
-	}
-	log.Info(index0, index1)
-	w.Write(decompressed[index0:index1])
-}
-	
